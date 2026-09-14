@@ -60,6 +60,9 @@ class ProgressTests(unittest.TestCase):
             P.close_run(self.path, 'cli', {}, 1)
             self.assertEqual(call.call_args.args[1][2], 'watchsmith-test')
             self.assertNotIn('완료', call.call_args.args[1][-1])
+            payload = json.loads(call.call_args.args[1][-1])
+            self.assertEqual(payload['auto_dismiss_minutes'], 0)
+            self.assertEqual(payload['percentage'], 0)
         self.assertEqual(P.claim(self.path)['action'], 'skip')
 
     def test_agent_end_prevents_duplicate_end_and_fallback(self):
@@ -105,12 +108,20 @@ time.sleep(.6)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0][:2], ['activity', 'end-stream'])
+        payload = json.loads(calls[0][-1])
+        self.assertEqual(payload['auto_dismiss_minutes'], 0)
+        self.assertEqual(payload['percentage'], 100)
+        self.assertEqual(payload['type'], 'progress')
 
     def test_wrapper_fallback_and_exit_code(self):
         result, calls = self.wrapper('import time; time.sleep(.5); raise SystemExit(7)')
         self.assertEqual(result.returncode, 7, result.stderr)
         self.assertEqual([c[:2] for c in calls], [['activity', 'stream'], ['activity', 'stream'], ['activity', 'end-stream']])
         self.assertEqual(calls[1][2], calls[2][2])
+        payload = json.loads(calls[2][-1])
+        self.assertEqual(payload['auto_dismiss_minutes'], 0)
+        self.assertEqual(payload['percentage'], 0)
+        self.assertIn('정상 종료되지', payload['subtitle'])
         self.assertNotIn(str(ROOT), json.dumps(calls))
 
     def test_unsupported_cli_pushes_once(self):

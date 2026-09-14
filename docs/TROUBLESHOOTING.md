@@ -82,3 +82,7 @@ The shell running the v0.2.0 launcher may select Python older than 3.11, even if
 ## Update finds a release but reports `Python 3.11+ is required`
 
 In v0.2.1, the launcher can choose a compatible Python but the updater's shell installer can select an older PATH default again. The updated implementation invokes the bundled Python installer with the running interpreter, and retains it through bootstrap/setup as well. For the first upgrade from an affected version, place your Python 3.11+ bin directory first on PATH in that terminal. A failed Python preflight does not apply the update; check `watchsmith version` afterward.
+
+## Completed progress card remains on the Lock Screen
+
+ActivitySmith documents a default two-minute dismissal delay after ending a Live Activity. Without final content, a completed card may also retain its previous in-progress text. The managed policy and wrapper now request `auto_dismiss_minutes=0` and explicit terminal content. This affects future end requests after the updated policy/runtime is installed; it does not remove old cards retroactively or delete app history. Server `completed`/processed end status alone does not establish device removal. Inspect the exact stream and delivery status before treating this as a duplicate or retrying. See [ActivitySmith dismissal behavior](https://activitysmith.com/features/live-activities).

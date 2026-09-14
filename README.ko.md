@@ -450,3 +450,5 @@ Computer Use를 사용하는 경우 설치기는 `Codex → Computer Use → Wat
 
 기능별 브랜치, Conventional Commits, PR 통합, 검증과 버전 태그 규칙은
 [CONTRIBUTING.md](CONTRIBUTING.md)를 참고하세요.
+
+Live Activity 종료 시 최종 상태를 명시하고 잠금화면에서 즉시 제거를 요청합니다. 종료 요청 성공이 실제 기기 화면의 제거를 보장하지는 않으며, ActivitySmith 앱 내부 기록은 유지됩니다.

@@ -104,7 +104,8 @@ def close_run(path, cli, env, code):
         invoke(cli, ['activity', 'end-stream', key, '--content-state', json.dumps({
             'type': 'progress', 'title': 'Codex 실행 종료',
             'subtitle': '명령이 종료되었습니다' if code == 0 else '명령이 정상 종료되지 않았습니다',
-            'percentage': 100 if code == 0 else 0})], env)
+            'percentage': 100 if code == 0 else 0,
+            'auto_dismiss_minutes': 0})], env)
 
 
 def run(command):

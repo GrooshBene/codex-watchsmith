@@ -350,3 +350,5 @@ callback timeout is not evidence of a watchdog failure.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for feature branches, Conventional Commits,
 pull requests, validation, and version tags.
+
+Live Activities request immediate Lock Screen dismissal when they end, with explicit final status. A successful end request does not prove removal on the device, and ActivitySmith history remains available.

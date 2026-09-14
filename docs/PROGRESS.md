@@ -65,3 +65,7 @@ Automated tests cover process environment propagation with a simulated agent,
 concurrent claims, both start orders, acknowledgment outcomes, expiry, cleanup,
 unsupported CLI fallback, and command exit preservation. Real Codex tool-shell
 propagation and mobile handover require separate integration verification.
+
+## Dismissal after completion
+
+Both the managed MCP policy (including Desktop outside the wrapper) and wrapper CLI end payload request `content_state.auto_dismiss_minutes=0`. MCP endings include truthful final status and retain the stream key/type. The wrapper reports process exit, not independently verified task success; nonzero exits do not show 100%. This requests immediate Lock Screen removal rather than leaving a completed card beside the next task. It does not delete app history or guarantee APNs/device delivery. Do not recreate or repeatedly end a completed stream to force removal.

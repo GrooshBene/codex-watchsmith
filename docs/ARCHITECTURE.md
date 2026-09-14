@@ -64,3 +64,7 @@ callback timeout is not evidence of a watchdog failure.
 ## Guided setup
 
 `watchsmith_setup.py` separates interactive configuration from read-only diagnostics. Source-package setup invokes the existing installer; installed setup completes optional connection/PATH steps. The release builder assembles a standalone bootstrap using the same updater verification functions, then starts setup from a verified archive. See [SETUP.md](SETUP.md).
+
+## Live Activity dismissal
+
+MCP agent policy and wrapper CLI termination both specify final status and `auto_dismiss_minutes=0` in the end content state. Remote completion, Lock Screen dismissal, and retained app history are distinct states; only device observation confirms removal. See [PROGRESS.md](PROGRESS.md).
