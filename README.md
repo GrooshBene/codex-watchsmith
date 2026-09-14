@@ -12,6 +12,55 @@ Mobile progress and completion notifications for long-running Codex work.
 
 macOS-first.
 
+## Before you install
+
+Watchsmith adds notification integration to an existing Codex setup. The installer does not install Codex, Python, Node.js, or ActivitySmith, create an account, or connect MCP. Complete the following preparation before following Quick start.
+
+### 1. Prepare your Mac
+
+- **macOS with zsh:** the scripts use zsh and macOS Keychain.
+- **A working Codex installation:** sign in and confirm you can complete a small task. Install Codex CLI as well if you want to use `codex-watch codex exec`; Desktop alone does not provide that command.
+- **Python 3.11 or newer:** `python3` must be available in your command path. The installer stops if Python or its TOML parser is unavailable.
+- **Node.js and npm:** needed to install and run ActivitySmith CLI using the commands below. See the [ActivitySmith CLI guide](https://activitysmith.com/sdks/cli) for its runtime requirements.
+- **The repository files:** the Quick start uses Git. Replace `<YOUR_GITHUB>` with the actual repository owner. If Git is unavailable, download and extract the repository ZIP, then open a terminal in that folder and start at `./install.sh`.
+
+Check the command-line prerequisites:
+
+```bash
+python3 --version   # must be 3.11 or newer
+node --version
+npm --version
+# Required for the CLI watchdog; optional for Desktop-only use:
+codex --version
+```
+
+If a required command is missing, install that tool before continuing. Watchsmith currently checks Python automatically; it does not perform a complete prerequisite check.
+
+### 2. Prepare ActivitySmith and your receiving device
+
+Follow the [official ActivitySmith quickstart](https://activitysmith.com/quickstart):
+
+1. Create an ActivitySmith account or sign in.
+2. Install the ActivitySmith iOS app and pair your receiving device with that account. Allow notifications; enable Live Activities if you intend to use them.
+3. Create an API key in the ActivitySmith web app using the same account. After installing Watchsmith, enter it through `activitysmith-keychain-setup`, which stores it in macOS Keychain. Do not paste it into this repository or your Codex configuration.
+4. Send a test notification from ActivitySmith Playground and confirm it appears on the device before troubleshooting Watchsmith.
+
+The Mac needs internet access to install the CLI and send notifications. The device must also be able to receive them. Creating an account and API key alone does not complete device setup.
+
+### 3. Connect MCP if you want agent-driven progress
+
+For Codex to report task stages through ActivitySmith, separately follow the [ActivitySmith MCP setup guide](https://activitysmith.com/integrations/mcp-server) for Codex and complete its authorization flow. Confirm the ActivitySmith tools are available in a new Codex session.
+
+MCP authorization and the CLI API key are separate. MCP is needed for agent-driven progress updates; it is not required for the completion notifier or CLI watchdog. Adding the global agent instructions does not connect MCP automatically.
+
+### 4. Choose the installation location
+
+The default is `~/.codex`. If your Codex setup uses another location, set `CODEX_HOME` to that directory before installation and use the same value for reinstall/uninstall. Add that directory's `bin` folder to your command path instead of the default path shown below.
+
+You do not need to remove an existing `notify` setting: the installer saves it and routes events through the dispatcher. Existing Computer Use compatibility is still under verification; its notifier timed out during the latest check, so preservation of its configuration is not proof of successful operation.
+
+The installer's completion message means local files and configuration have been installed. Finish the CLI installation, command-path setup, Keychain registration, connection test, and Codex restart below before treating notification setup as complete.
+
 ## Quick start
 
 ```bash
