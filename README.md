@@ -61,6 +61,20 @@ You do not need to remove an existing `notify` setting: the installer saves it a
 
 The installer's completion message means local files and configuration have been installed. Finish the CLI installation, command-path setup, Keychain registration, connection test, and Codex restart below before treating notification setup as complete.
 
+## Guided installation (upcoming release)
+
+From a checkout or release package containing the setup wizard, run `./setup.sh`.
+It checks prerequisites, offers missing CLI installation, preserves existing
+configuration, guides Keychain registration, and optionally adds the command path
+and sends one test notification. Account/device pairing and MCP authorization
+remain separate guided steps.
+
+After installation, use `watchsmith setup` to finish skipped steps and
+`watchsmith doctor` (or `--json`) for read-only local diagnostics. The initial
+bootstrap entry point will be available with a future supporting release; v0.1.0
+does not include it. See [guided setup](docs/SETUP.md) for the single-command flow
+and remaining prerequisites. The manual path below remains available.
+
 ## New installation
 
 For an existing or legacy installation, use **Upgrade an existing computer** below. Do not uninstall first or delete your existing `notify` setting.
@@ -149,6 +163,7 @@ Files:
 ├── config.toml
 ├── bin/
 │   ├── watchsmith
+│   ├── watchsmith_setup.py
 │   ├── watchsmith_update.py
 │   ├── watchsmith_install.py
 │   ├── watchsmith_config.py

@@ -19,7 +19,7 @@ import tomllib
 ROOT = Path(__file__).resolve().parent.parent
 NAMES = ('activitysmith_notify.py', 'watchsmith_notify_dispatcher.py', 'codex-watch',
          'activitysmith-keychain-setup', 'activitysmith-test', 'watchsmith_result.py', 'watchsmith_delivery.py', 'watchsmith_progress.py', 'watchsmith', 'watchsmith_update.py',
-         'watchsmith_install.py', 'watchsmith_config.py')
+         'watchsmith_install.py', 'watchsmith_config.py', 'watchsmith_setup.py')
 TRACKED = ['bin/' + n for n in NAMES] + ['config.toml', 'AGENTS.md', 'watchsmith/previous_notify.json', 'watchsmith/installation.json']
 
 

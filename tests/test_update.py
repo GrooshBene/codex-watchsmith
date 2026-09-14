@@ -23,9 +23,9 @@ class UpdateTests(unittest.TestCase):
         cls.addClassCleanup(cls.workspace.cleanup)
         repo = Path(cls.workspace.name) / 'source'
         repo.mkdir()
-        for name in ('bin', 'config', 'docs'):
+        for name in ('bin', 'config', 'docs', 'scripts'):
             shutil.copytree(ROOT / name, repo / name, ignore=shutil.ignore_patterns('__pycache__', 'VERIFICATION.md', 'MIGRATION_PLAN.md'))
-        for name in ('install.sh', 'uninstall.sh', 'README.md', 'README.ko.md', 'LICENSE', 'CONTRIBUTING.md'):
+        for name in ('install.sh', 'uninstall.sh', 'setup.sh', 'README.md', 'README.ko.md', 'LICENSE', 'CONTRIBUTING.md'):
             shutil.copy(ROOT / name, repo / name)
         (repo / 'VERSION').write_text('0.2.0\n')
         with (repo / 'bin/watchsmith_update.py').open('a') as file:
@@ -146,3 +146,48 @@ class UpdateTests(unittest.TestCase):
             with patch.object(U, 'download') as network:
                 self.assertEqual(self.call('update', '--quiesced'), 1)
                 network.assert_not_called()
+
+    def test_generated_bootstrap_verifies_before_launching_setup(self):
+        namespace = {'__name__': 'bootstrap_fixture'}
+        exec((self.output / 'watchsmith-bootstrap.py').read_text(), namespace)
+        namespace['release'] = lambda tag: self.release
+        namespace['download'] = lambda url, limit: self.checksum.encode() if url.endswith('SHA256SUMS') else self.blob
+        def launch(command, env):
+            self.assertEqual(command[0], 'zsh')
+            self.assertTrue(Path(command[1]).is_file())
+            self.assertEqual(Path(command[1]).name, 'setup.sh')
+            self.assertEqual(env['WATCHSMITH_PACKAGE_SHA256'], hashlib.sha256(self.blob).hexdigest())
+            return 0
+        with patch.object(sys, 'argv', ['bootstrap']), patch.object(sys.stdin, 'isatty', return_value=True), patch.object(subprocess, 'call', side_effect=launch) as call:
+            self.assertEqual(namespace['bootstrap_main'](), 0)
+            call.assert_called_once()
+
+    def test_bootstrap_rejects_bad_package_before_execution(self):
+        namespace = {'__name__': 'bootstrap_fixture'}
+        exec((self.output / 'watchsmith-bootstrap.py').read_text(), namespace)
+        namespace['release'] = lambda tag: self.release
+        namespace['download'] = lambda url, limit: self.checksum.encode() if url.endswith('SHA256SUMS') else b'corrupt'
+        with patch.object(sys, 'argv', ['bootstrap']), patch.object(sys.stdin, 'isatty', return_value=True), patch.object(subprocess, 'call') as call:
+            self.assertEqual(namespace['bootstrap_main'](), 1)
+            call.assert_not_called()
+
+    def test_native_https_follows_only_validated_redirects(self):
+        responses = iter([(302, 'https://release-assets.githubusercontent.com/file', b''), (200, None, b'package')])
+        def curl(args, **kwargs):
+            code, location, data = next(responses)
+            Path(args[args.index('--output') + 1]).write_bytes(data)
+            Path(args[args.index('--dump-header') + 1]).write_text('Location: ' + location + '\n' if location else '')
+            return subprocess.CompletedProcess(args, 0, str(code), '')
+        with patch.object(U.subprocess, 'run', side_effect=curl) as call:
+            self.assertEqual(U.curl_download('https://github.com/example', 100), b'package')
+            self.assertEqual(call.call_count, 2)
+            self.assertNotIn('--insecure', call.call_args.args[0])
+
+    def test_native_https_rejects_foreign_redirect_before_following(self):
+        def curl(args, **kwargs):
+            Path(args[args.index('--output') + 1]).write_bytes(b'')
+            Path(args[args.index('--dump-header') + 1]).write_text('Location: https://example.com/private\n')
+            return subprocess.CompletedProcess(args, 0, '302', '')
+        with patch.object(U.subprocess, 'run', side_effect=curl) as call, self.assertRaises(ValueError):
+            U.curl_download('https://github.com/example', 100)
+        self.assertEqual(call.call_count, 1)

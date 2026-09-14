@@ -14,7 +14,7 @@ Existing credentials and MCP authorization are reused. Restart Codex.
 
 After this one-time migration, Git and a repository checkout are not needed for
 updates. Python 3.11+, zsh, network access, and the existing notification setup
-are still required. Installation simplification is a separate next step.
+are still required. Guided setup and read-only diagnostics are described in [SETUP.md](SETUP.md).
 
 ## Commands
 
@@ -50,7 +50,7 @@ continue to apply; remote notifications cannot be retracted.
 
 ## Package and trust model
 
-Each release supplies `codex-watchsmith-vX.Y.Z.tar.gz` and `SHA256SUMS`.
+Each release supplies `codex-watchsmith-vX.Y.Z.tar.gz` , `SHA256SUMS`, and the standalone `watchsmith-bootstrap.py` setup entry point.
 The archive contains a versioned `release.json` with the source commit and file
 hashes. The updater verifies the archive checksum, version, complete inventory,
 and individual file hashes. Unsafe paths, links, duplicate members, excessive
@@ -89,3 +89,5 @@ state, credentials, and Git history are not packaged. `dist/` is ignored by Git.
 The current development version is `0.2.0-dev`; packaging intentionally rejects
 it until a stable version is committed. The GitHub workflow itself must be
 verified on a future tag; local tests do not certify a hosted CI run.
+
+On macOS, downloads use `/usr/bin/curl` with system certificate verification and explicit per-hop HTTPS/host checks. This avoids relying on an independently installed Python certificate bundle. TLS verification is never disabled.

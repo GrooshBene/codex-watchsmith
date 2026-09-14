@@ -5,6 +5,7 @@ import fcntl
 import hashlib
 import json
 import os
+import platform
 from pathlib import Path, PurePosixPath
 import re
 import subprocess
@@ -48,7 +49,44 @@ class SafeRedirect(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
+def curl_download(url, limit):
+    """Use macOS curl's native trust store; validate each redirect before following."""
+    for _ in range(6):
+        parsed = urllib.parse.urlsplit(url)
+        host = parsed.hostname or ''
+        if parsed.scheme != 'https' or parsed.username or parsed.password or not (
+                host in ('github.com', 'api.github.com') or host.endswith('.githubusercontent.com')):
+            raise ValueError('unexpected HTTPS download destination')
+        with tempfile.TemporaryDirectory(prefix='watchsmith-https-') as directory:
+            body = Path(directory) / 'body'
+            headers = Path(directory) / 'headers'
+            response = subprocess.run(['/usr/bin/curl', '--proto', '=https', '--silent', '--show-error',
+                '--max-time', '30', '--max-filesize', str(limit), '--output', str(body),
+                '--dump-header', str(headers), '--write-out', '%{http_code}',
+                '--user-agent', 'codex-watchsmith-updater', url], capture_output=True, text=True, timeout=35)
+            if response.returncode:
+                raise ValueError('HTTPS download failed; check network and system certificate trust')
+            code = int(response.stdout)
+            if code in (301, 302, 303, 307, 308):
+                locations = [line.split(':', 1)[1].strip() for line in headers.read_text().splitlines()
+                             if line.lower().startswith('location:')]
+                if len(locations) != 1:
+                    raise ValueError('ambiguous download redirect')
+                url = urllib.parse.urljoin(url, locations[0])
+                continue
+            if code != 200:
+                raise ValueError('release server returned HTTP ' + str(code))
+            with body.open('rb') as file:
+                data = file.read(limit + 1)
+            if len(data) > limit:
+                raise ValueError('download exceeds size limit')
+            return data
+    raise ValueError('too many download redirects')
+
+
 def download(url, limit):
+    if platform.system() == 'Darwin':
+        return curl_download(url, limit)
     request = urllib.request.Request(url, headers={'User-Agent': 'codex-watchsmith-updater',
                                                   'Accept': 'application/vnd.github+json'})
     with urllib.request.build_opener(SafeRedirect()).open(request, timeout=30) as response:
@@ -132,9 +170,14 @@ def unpack(blob, checksum, tag, destination):
 
 
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] in ('setup', 'doctor'):
+        from watchsmith_setup import main as setup_main
+        return setup_main(sys.argv[1:])
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest='command', required=True)
     sub.add_parser('version')
+    sub.add_parser('setup', help='interactive connection and installation guidance')
+    sub.add_parser('doctor', help='read-only local diagnostics')
     update = sub.add_parser('update')
     update.add_argument('--check', action='store_true')
     update.add_argument('--version', help='published stable tag, for example v0.2.0')

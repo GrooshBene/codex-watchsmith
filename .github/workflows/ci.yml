@@ -16,5 +16,5 @@ jobs:
           python-version: '3.13'
       - run: python3 -m unittest discover -s tests
       - run: python3 -m compileall -q bin scripts tests
-      - run: zsh -o NO_BG_NICE -n install.sh uninstall.sh bin/watchsmith bin/codex-watch bin/activitysmith-keychain-setup bin/activitysmith-test
+      - run: zsh -o NO_BG_NICE -n setup.sh install.sh uninstall.sh bin/watchsmith bin/codex-watch bin/activitysmith-keychain-setup bin/activitysmith-test
       - run: git diff --check

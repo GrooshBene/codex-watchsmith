@@ -20,7 +20,7 @@ def build(ref, output):
     if ref.startswith('v') and ref != 'v' + value:
         raise ValueError('tag and VERSION mismatch')
     paths = subprocess.check_output(['git', 'ls-tree', '-r', '--name-only', commit], text=True).splitlines()
-    files = {p: read(p) for p in paths if p in ('VERSION', 'LICENSE', 'CONTRIBUTING.md', 'README.md', 'README.ko.md', 'install.sh', 'uninstall.sh')
+    files = {p: read(p) for p in paths if p in ('VERSION', 'LICENSE', 'CONTRIBUTING.md', 'README.md', 'README.ko.md', 'install.sh', 'uninstall.sh', 'setup.sh')
              or p.startswith(('bin/', 'config/', 'docs/')) and not p.endswith(('.pyc', '.log'))}
     metadata = {'schema_version': 1, 'version': value, 'commit': commit,
                 'files': {p: hashlib.sha256(data).hexdigest() for p, data in files.items()}}
@@ -32,6 +32,9 @@ def build(ref, output):
             info = tarfile.TarInfo(p); info.size = len(data); info.mode = 0o644
             tar.addfile(info, io.BytesIO(data))
     (output / 'SHA256SUMS').write_text(hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name + '\n')
+    updater = read('bin/watchsmith_update.py').decode().split("if __name__ == '__main__':")[0]
+    entry = read('scripts/bootstrap-entry.py').decode()
+    (output / 'watchsmith-bootstrap.py').write_text(updater + '\n' + entry)
     return archive
 
 

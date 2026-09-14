@@ -77,6 +77,14 @@ MCP 인증과 CLI용 API Key는 별개입니다. MCP는 에이전트가 직접 �
 
 설치 프로그램의 완료 메시지는 로컬 파일과 설정의 설치가 끝났다는 뜻입니다. 아래의 CLI 설치, 명령 경로 등록, Keychain 등록, 연결 테스트, Codex 재시작까지 마쳐야 알림 설정이 완료됩니다.
 
+## 설치 도우미 (다음 릴리스용)
+
+설치 도우미가 포함된 저장소 또는 릴리스 패키지에서 `./setup.sh`를 실행하면 됩니다. 필요한 환경을 확인하고, 없는 CLI 설치·기존 설정 보존·Keychain 등록·명령 경로 설정·테스트 알림을 순서대로 안내합니다. 이미 준비된 항목은 재사용합니다.
+
+설치 후에는 `watchsmith setup`으로 건너뛴 단계를 이어가고, `watchsmith doctor` 또는 `watchsmith doctor --json`으로 로컬 상태를 진단합니다. 진단은 설정을 바꾸거나 알림을 보내지 않으며, 키·설정 원문을 출력하지 않습니다.
+
+macOS와 Python 3.11+는 필요합니다. 계정·기기 연결과 MCP 인증은 안내에 따라 직접 완료합니다. 단일 명령 다운로드 진입점은 이를 포함한 다음 릴리스부터 사용할 수 있으며, v0.1.0에는 없습니다. [설치 도우미 상세 안내](docs/SETUP.md)를 참고하세요. 아래 수동 설치 방식도 계속 지원합니다.
+
 ## 신규 설치
 
 이미 설치했거나 레거시 버전을 사용 중이라면 아래 **기존 컴퓨터 업그레이드** 절차를 따르세요. 먼저 삭제하거나 기존 `notify` 설정을 지울 필요가 없습니다.
@@ -162,6 +170,7 @@ watchsmith rollback --quiesced
 ├── config.toml
 ├── bin/
 │   ├── watchsmith
+│   ├── watchsmith_setup.py
 │   ├── watchsmith_update.py
 │   ├── watchsmith_install.py
 │   ├── watchsmith_config.py

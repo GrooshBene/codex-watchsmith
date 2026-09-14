@@ -45,7 +45,7 @@ Run from the repository root:
 ```bash
 python3 -m unittest discover -s tests
 python3 -m compileall -q bin scripts tests
-zsh -o NO_BG_NICE -n install.sh uninstall.sh bin/watchsmith bin/codex-watch bin/activitysmith-keychain-setup bin/activitysmith-test
+zsh -o NO_BG_NICE -n setup.sh install.sh uninstall.sh bin/watchsmith bin/codex-watch bin/activitysmith-keychain-setup bin/activitysmith-test
 git diff --check
 ```
 
