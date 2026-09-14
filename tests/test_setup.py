@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -108,3 +109,40 @@ class SetupTests(unittest.TestCase):
         with patch.object(S.sys.stdin, 'isatty', return_value=True), patch.object(S.platform, 'system', return_value='Darwin'), patch.object(S.shutil, 'which', side_effect=which), contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(S.setup(self.home, ROOT), 1)
         self.assertEqual(list(self.home.iterdir()), [])
+
+
+class LauncherTests(unittest.TestCase):
+    def test_skips_incompatible_default_and_preserves_arguments_and_exit_code(self):
+        with tempfile.TemporaryDirectory(prefix='launcher path ') as tmp:
+            root = Path(tmp)
+            launcher = root / 'watchsmith'
+            launcher.write_bytes((ROOT / 'bin/watchsmith').read_bytes())
+            launcher.chmod(0o755)
+            (root / 'watchsmith_update.py').write_text('import json,sys; print(json.dumps(sys.argv[1:])); sys.exit(7)')
+            old = root / 'python3'
+            old.write_text('#!/bin/sh\nexit 1\n')
+            old.chmod(0o755)
+            compatible = root / 'python3.11'
+            compatible.symlink_to(sys.executable)
+            result = subprocess.run([str(launcher), 'doctor', 'argument with spaces'], env=dict(os.environ, PATH=tmp), capture_output=True, text=True)
+            self.assertEqual(result.returncode, 7, result.stderr)
+            self.assertEqual(json.loads(result.stdout), ['doctor', 'argument with spaces'])
+
+    def test_no_compatible_python_has_clear_error(self):
+        # Isolate discovery locations to model a machine with only old Python.
+        with tempfile.TemporaryDirectory(prefix='no python ') as tmp:
+            source = (ROOT / 'bin/watchsmith').read_text()
+            start = source.index('watchsmith_pythons=(')
+            end = source.index('\n)', start) + 2
+            source = source[:start] + 'watchsmith_pythons=(python3)' + source[end:]
+            launcher = Path(tmp) / 'watchsmith'
+            launcher.write_text(source)
+            launcher.chmod(0o755)
+            old = Path(tmp) / 'python3'
+            old.write_text('#!/bin/sh\nexit 1\n')
+            old.chmod(0o755)
+            result = subprocess.run([str(launcher), 'doctor'], env=dict(os.environ, PATH=tmp), capture_output=True, text=True)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn('Python 3.11+', result.stderr)
+            self.assertNotIn('Traceback', result.stderr)
+            self.assertEqual(result.stdout, '')
