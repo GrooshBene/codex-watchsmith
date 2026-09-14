@@ -68,3 +68,9 @@ callback timeout is not evidence of a watchdog failure.
 ## Live Activity dismissal
 
 MCP agent policy and wrapper CLI termination both specify final status and `auto_dismiss_minutes=0` in the end content state. Remote completion, Lock Screen dismissal, and retained app history are distinct states; only device observation confirms removal. See [PROGRESS.md](PROGRESS.md).
+
+Shared progress contexts now retain a bounded, explicitly supplied content state and immutable type under the existing file lock. New fallback-first contexts choose elapsed timer; legacy contexts retain progress. MCP claims return the chosen content and reject type rotation by returning the existing type. This does not associate Desktop tasks with wrapper runs. The result argument builder separately supports opt-in Lock Screen previews; the hook queue route below shares the existing completion claim.
+
+## Reviewed completion routing
+
+The result helper can stage an approved preview in a private summaries table in the existing delivery database. The notifier resolves exact turn identity or a random final-response reference plus matching thread, binds the result to the event and uses the existing generic-owner claim as the single sender. No transcript summarization or most-recent-file lookup occurs. CLI title/message/subtitle carry only prepared text. Unknown direct-MCP outcomes suppress generic retries. Client preservation of the reference is an integration requirement; storage failures and independent senders remain best-effort.

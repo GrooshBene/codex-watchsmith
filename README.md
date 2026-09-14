@@ -352,3 +352,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for feature branches, Conventional Commit
 pull requests, validation, and version tags.
 
 Live Activities request immediate Lock Screen dismissal when they end, with explicit final status. A successful end request does not prove removal on the device, and ActivitySmith history remains available.
+
+Watchsmith can select stage-based progress, measured percentage, elapsed time, alerts, or measured stats/metrics at the start of a task. Wrapped MCP/watchdog paths share the first selected type until termination. Colour and status text can change without replacing the card. Reviewed completion Push previews can include a task name and brief result via `--share-preview`; the queue route shares the completion hook’s delivery claim. See [progress](docs/PROGRESS.md) and [results](docs/RESULTS.md).
+
+Completion previews can now be queued locally for the existing completion hook, which sends the reviewed task name, outcome and optional verification subtitle instead of a second generic Push. Exact event IDs or a one-use reference in the final response associate the preview; unsupported clients fall back to neutral response-ended wording. See [result delivery](docs/RESULTS.md).

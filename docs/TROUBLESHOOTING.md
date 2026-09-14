@@ -86,3 +86,9 @@ In v0.2.1, the launcher can choose a compatible Python but the updater's shell i
 ## Completed progress card remains on the Lock Screen
 
 ActivitySmith documents a default two-minute dismissal delay after ending a Live Activity. Without final content, a completed card may also retain its previous in-progress text. The managed policy and wrapper now request `auto_dismiss_minutes=0` and explicit terminal content. This affects future end requests after the updated policy/runtime is installed; it does not remove old cards retroactively or delete app history. Server `completed`/processed end status alone does not establish device removal. Inspect the exact stream and delivery status before treating this as a duplicate or retrying. See [ActivitySmith dismissal behavior](https://activitysmith.com/features/live-activities).
+
+If a requested Live Activity type is not selected, inspect the claim's `type_locked` and `content_state_type`. A previous claim or watchdog may already own the type; use the returned content instead of starting a second stream. New fallback-first runs use elapsed timer. Numeric displays require real supplied values; malformed content fails locally. App-only detailed metadata and visible Push previews have separate opt-ins.
+
+## Completion summary missing or duplicated
+
+Use the queue route without also sending the same preview through MCP. The helper must have a trusted thread ID and either exact turn ID or its returned final_marker included as the last line of the final answer. The hook must receive that marker in last-assistant-message; some clients can strip it. Missing/expired/mismatched summaries use the generic response-ended fallback, never a guessed last result. Check local queue/event association before sending again. Unknown transport outcomes are not retried automatically. A broken local store or independently configured external sender is outside reliable deduplication.

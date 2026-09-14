@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import secrets
 import sqlite3
@@ -11,6 +12,8 @@ import sys
 import time
 
 RETENTION = 7 * 24 * 3600
+SUMMARY_TTL = 3600
+MARKER = re.compile(r"(?:^|\n)<!-- watchsmith-result:([0-9a-f]{48}) -->\s*\Z")
 
 
 def event_key(thread_id, turn_id):
@@ -37,6 +40,61 @@ class Store:
             event_key TEXT PRIMARY KEY, state TEXT NOT NULL, owner TEXT NOT NULL,
             token TEXT NOT NULL, lease REAL NOT NULL, updated REAL NOT NULL,
             generic_attempted INTEGER NOT NULL DEFAULT 0)''')
+        self.db.execute('''CREATE TABLE IF NOT EXISTS summaries (
+            reference TEXT PRIMARY KEY, thread TEXT NOT NULL, identity TEXT,
+            payload TEXT NOT NULL, expires REAL NOT NULL, bound TEXT)''')
+
+    def stage(self, thread_id, payload, turn_id=None, now=None):
+        now = time.time() if now is None else now
+        thread = event_key(thread_id, 'summary-thread')
+        identity = event_key(thread_id, turn_id) if turn_id is not None else None
+        if set(payload) - {'title', 'message', 'subtitle'} or not all(
+                isinstance(payload.get(k), str) and payload[k].strip() and len(payload[k]) <= limit
+                for k, limit in (('title', 100), ('message', 180))):
+            raise ValueError('invalid reviewed notification')
+        if 'subtitle' in payload and (not isinstance(payload['subtitle'], str) or len(payload['subtitle']) > 140):
+            raise ValueError('invalid notification subtitle')
+        reference = secrets.token_hex(24)
+        self.db.execute('DELETE FROM summaries WHERE expires < ?', (now,))
+        self.db.execute('INSERT INTO summaries VALUES (?,?,?,?,?,?)',
+                        (reference, thread, identity, json.dumps(payload), now + SUMMARY_TTL, None))
+        return {'queued': True, 'reference': reference, 'expires_in': SUMMARY_TTL,
+                'final_marker': '<!-- watchsmith-result:' + reference + ' -->' if identity is None else None}
+
+    def summary(self, event, now=None):
+        """Resolve only an exact turn or an explicit reference in this final response."""
+        now = time.time() if now is None else now
+        try:
+            thread = event_key(event.get('thread-id'), 'summary-thread')
+        except ValueError:
+            return None
+        try:
+            identity = event_key(event['thread-id'], event.get('turn-id'))
+        except ValueError:
+            identity = None
+        message = event.get('last-assistant-message')
+        match = MARKER.search(message) if isinstance(message, str) else None
+        reference = match[1] if match else None
+        self.db.execute('BEGIN IMMEDIATE')
+        try:
+            if reference:
+                rows = self.db.execute('SELECT reference,identity,payload,bound FROM summaries WHERE reference=? AND thread=? AND expires>=?', (reference, thread, now)).fetchall()
+            elif identity:
+                rows = self.db.execute('SELECT reference,identity,payload,bound FROM summaries WHERE identity=? AND thread=? AND expires>=?', (identity, thread, now)).fetchall()
+            else:
+                rows = []
+            result = None
+            if len(rows) == 1:
+                ref, intended, payload, bound = rows[0]
+                key = identity or event_key(event['thread-id'], 'summary-reference:' + ref)
+                if (intended is None or intended == identity) and (bound is None or bound == key):
+                    self.db.execute('UPDATE summaries SET bound=? WHERE reference=?', (key, ref))
+                    result = (key, json.loads(payload))
+            self.db.execute('COMMIT')
+            return result
+        except Exception:
+            self.db.execute('ROLLBACK')
+            raise
 
     def close(self):
         self.db.close()
@@ -52,6 +110,8 @@ class Store:
             row = db.execute('SELECT state,owner,token,lease,generic_attempted FROM delivery WHERE event_key=?', (key,)).fetchone()
             if row and row[0] == 'accepted':
                 result = {'action': 'skip', 'reason': 'accepted'}
+            elif row and row[0] == 'unknown':
+                result = {'action': 'skip', 'reason': 'uncertain-delivery'}
             elif row and row[0] == 'pending' and row[3] > now:
                 result = {'action': 'wait', 'retry_after': row[3] - now}
             elif row and row[4]:

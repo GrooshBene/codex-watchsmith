@@ -452,3 +452,7 @@ Computer Use를 사용하는 경우 설치기는 `Codex → Computer Use → Wat
 [CONTRIBUTING.md](CONTRIBUTING.md)를 참고하세요.
 
 Live Activity 종료 시 최종 상태를 명시하고 잠금화면에서 즉시 제거를 요청합니다. 종료 요청 성공이 실제 기기 화면의 제거를 보장하지는 않으며, ActivitySmith 앱 내부 기록은 유지됩니다.
+
+작업 시작 시 단계형·진행률·경과 시간·상태 안내·실측 수치에 맞는 Live Activity를 선택할 수 있습니다. wrapper의 MCP와 watchdog은 먼저 선택된 타입을 종료까지 공유하고 색상·상태 문구로 단계를 구분합니다. 검토한 작업명과 짧은 결과는 `--share-preview`로 완료 Push에 담을 수 있습니다. 큐 전달 경로에서는 완료 hook의 전송 기록을 공유합니다. [진행 알림](docs/PROGRESS.md)과 [결과 공유](docs/RESULTS.md)를 참고하세요.
+
+완료 요약을 로컬에 준비하면 기존 완료 hook이 작업명·수행 결과·선택 검증 부제를 담은 Push 한 건으로 전송합니다. 정확한 이벤트 ID 또는 최종 응답의 일회용 참조값으로 연결하며, 연결하지 못한 경우에는 목표 완료를 단정하지 않는 응답 종료 안내를 보냅니다. [결과 전달](docs/RESULTS.md)을 참고하세요.

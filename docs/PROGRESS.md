@@ -12,7 +12,7 @@ responses, credentials, or project paths intended for remote delivery.
 1. Before a meaningful MCP progress update, the agent invokes
    `python3 "$WATCHSMITH_PROGRESS_HELPER" claim`.
 2. On `send`, it calls the existing `set_live_activity_stream` using the returned
-   `stream_key`, `content_state.type=progress`, and default target channels.
+   `stream_key`, returned `content_state_type`/`content_state`, and default target channels.
    On `wait` or `skip`, it does not start a second activity.
 3. Immediately after the response, it invokes
    `python3 "$WATCHSMITH_PROGRESS_HELPER" finish --token TOKEN --outcome accepted`.
@@ -68,4 +68,18 @@ propagation and mobile handover require separate integration verification.
 
 ## Dismissal after completion
 
-Both the managed MCP policy (including Desktop outside the wrapper) and wrapper CLI end payload request `content_state.auto_dismiss_minutes=0`. MCP endings include truthful final status and retain the stream key/type. The wrapper reports process exit, not independently verified task success; nonzero exits do not show 100%. This requests immediate Lock Screen removal rather than leaving a completed card beside the next task. It does not delete app history or guarantee APNs/device delivery. Do not recreate or repeatedly end a completed stream to force removal.
+Both the managed MCP policy (including Desktop outside the wrapper) and wrapper CLI end payload request `content_state.auto_dismiss_minutes=0`. MCP endings include truthful final status and retain the stream key/type. The wrapper reports process exit, not independently verified task success; the wrapper preserves the last supplied measurement/step rather than declaring all work complete from an exit code alone. This requests immediate Lock Screen removal rather than leaving a completed card beside the next task. It does not delete app history or guarantee APNs/device delivery. Do not recreate or repeatedly end a completed stream to force removal.
+
+## Type selection and handover
+
+The agent chooses a display at the first claim, for example:
+
+```sh
+python3 "$WATCHSMITH_PROGRESS_HELPER" claim --content-state '{"type":"segmented_progress","current_step":1,"number_of_steps":3}'
+```
+
+Use the returned content_state (including timer start when present), stream_key and type for the MCP request. The first claim locks the type conservatively even after failure or uncertainty. A different later type request returns `type_locked=true` and the existing content; it never rotates the stream. Same-type claims can supply fresh reviewed values. Claims are serialized, and wait/skip must not send.
+
+New wrapper contexts use an elapsed timer if watchdog starts first; old contexts without a type retain progress compatibility. Timer start is preserved across handover. A bare first claim retains the legacy progress default; agents should supply their chosen type explicitly. Supported wrapper displays: progress (percentage), segmented_progress (current_step/number_of_steps), elapsed timer, alert (message), stats/metrics (explicit metrics array). Countdown scheduling and persistent approval cards are not implemented.
+
+Fallback and cleanup use the selected type and last supplied display fields. Those values describe the last request, not an independent measurement or proof of remote receipt. They add generic process status and immediate dismissal at exit. Colours, icons and badges may distinguish phases without changing type. Agent-acknowledged end closes the local lifecycle so later claims cannot recreate it. Desktop outside the wrapper relies on policy and does not gain process/turn correlation.
