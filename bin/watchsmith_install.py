@@ -18,7 +18,8 @@ import tomllib
 
 ROOT = Path(__file__).resolve().parent.parent
 NAMES = ('activitysmith_notify.py', 'watchsmith_notify_dispatcher.py', 'codex-watch',
-         'activitysmith-keychain-setup', 'activitysmith-test', 'watchsmith_result.py', 'watchsmith_delivery.py', 'watchsmith_progress.py')
+         'activitysmith-keychain-setup', 'activitysmith-test', 'watchsmith_result.py', 'watchsmith_delivery.py', 'watchsmith_progress.py', 'watchsmith', 'watchsmith_update.py',
+         'watchsmith_install.py', 'watchsmith_config.py')
 TRACKED = ['bin/' + n for n in NAMES] + ['config.toml', 'AGENTS.md', 'watchsmith/previous_notify.json', 'watchsmith/installation.json']
 
 
@@ -199,6 +200,17 @@ def prepare(home):
                 'uninstall_notify': original,
                 'installed_previous_notify': previous,
                 'installed_hashes': {'bin/' + n: digest(after['bin/' + n]) for n in NAMES}}
+    version_path = ROOT / 'VERSION'
+    release_path = ROOT / 'release.json'
+    release_info = json.loads(release_path.read_text()) if release_path.exists() else {}
+    prior_release = manifest.get('release', {}) if manifest else {}
+    package_hash = os.environ.get('WATCHSMITH_PACKAGE_SHA256')
+    if not package_hash and release_info.get('commit') and prior_release.get('commit') == release_info['commit']:
+        package_hash = prior_release.get('package_sha256')
+    document['release'] = {'version': version_path.read_text().strip() if version_path.exists() else 'unknown',
+                           'commit': release_info.get('commit'),
+                           'package_sha256': package_hash,
+                           'source': 'release' if release_info else 'checkout'}
     after['watchsmith/installation.json'] = encode((json.dumps(document, indent=2) + '\n').encode())
     kind = 'computer-use-wrapper' if computer else ('dispatcher' if is_dispatcher(old, dispatcher_path) else ('existing-notifier' if old else 'new'))
     return before, after, kind

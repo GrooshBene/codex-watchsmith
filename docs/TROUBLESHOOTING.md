@@ -62,3 +62,7 @@ stop for review. Reinstallation is a no-op once reconciled; removal restores the
 original notifier while retaining Computer Use. No extra first-install action is
 required. External callback execution is separate from watchdog timing; the earlier
 callback timeout is not evidence of a watchdog failure.
+
+## Update is unavailable or rejected
+
+An older release may lack updater assets; v0.1.0 requires one manual migration. Network failures, missing assets, checksum mismatches, unsafe archives, and prereleases are rejected before execution. `update` requires `--quiesced` for application. If an interrupted installation has a pending journal, use `watchsmith rollback --quiesced` before trying again. Do not bypass verification by executing a rejected archive. See [UPDATES.md](UPDATES.md).

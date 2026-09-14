@@ -136,6 +136,22 @@ Codex를 재시작한 뒤 `activitysmith-test`와 새 작업의 완료 알림을
 
 되돌리려면 관련 작업을 멈추고 설치 시 출력된 ID로 `./install.sh --rollback TRANSACTION_ID --quiesced`를 실행합니다. 비공개 복구 기록은 Git에 넣지 마세요. [업데이트·복구 상세 안내](docs/UPGRADING.md)를 참고하세요.
 
+## 최초 이전 이후의 업데이트
+
+업데이트 기능을 포함한 버전을 설치하면 다음 명령이 함께 설치됩니다.
+
+```bash
+watchsmith version
+watchsmith update --check
+# 실행 중인 작업을 마치고 관련 앱을 닫은 뒤 적용:
+watchsmith update --quiesced
+watchsmith rollback --quiesced
+```
+
+공식 정식 릴리스를 확인하고 패키지를 검증한 뒤, 기존 설치기와 복구 기록을 사용합니다. 최초 이전 이후에는 Git이나 저장소 폴더가 없어도 업데이트할 수 있습니다. v0.1.0에는 이 명령이 없으므로 기능이 포함된 릴리스까지 한 번은 기존 방식으로 업그레이드해야 합니다. 이번 구현만으로 새 릴리스가 공개되는 것은 아닙니다.
+
+`--check`는 로컬 파일을 변경하지 않습니다. 적용에는 작업 종료를 확인하는 `--quiesced`가 필요하며 자동으로 프로세스를 멈추지는 않습니다. `rollback`은 가장 최근 설치 변경을 복원합니다. 체크섬은 손상 검사용이며 배포자 서명은 아닙니다. [업데이트·배포 상세 안내](docs/UPDATES.md)를 참고하세요. 설치 과정 간소화는 이후 별도로 진행합니다.
+
 ## 설치 프로그램이 하는 일
 
 설치 후 구조는 대략 다음과 같습니다.
@@ -145,6 +161,10 @@ Codex를 재시작한 뒤 `activitysmith-test`와 새 작업의 완료 알림을
 ├── AGENTS.md
 ├── config.toml
 ├── bin/
+│   ├── watchsmith
+│   ├── watchsmith_update.py
+│   ├── watchsmith_install.py
+│   ├── watchsmith_config.py
 │   ├── codex-watch
 │   ├── watchsmith_result.py
 │   ├── watchsmith_progress.py
@@ -414,3 +434,8 @@ Computer Use를 사용하는 경우 설치기는 `Codex → Computer Use → Wat
 이전 설치에서 재시작으로 바깥 연결이 추가된 경우, 설치 기록과 저장된 원본이 일치하는지 확인하고 중복된 이전 Computer Use 구간만 정리합니다. 식별할 수 없는 구성은 임의로 변경하지 않습니다. 정리 후 재설치는 변경 없이 끝나며, 제거 시 기존 notifier와 Computer Use를 보존합니다. 신규 사용자가 추가로 설정할 부분은 없습니다.
 
 이전에 관찰한 외부 callback 시간 초과는 watchdog의 고장 근거가 아닙니다. 설치 점검은 연결 구성을 검증하며 외부 callback 자체의 정상 실행을 보증하지는 않습니다.
+
+## 기여 및 버전 관리
+
+기능별 브랜치, Conventional Commits, PR 통합, 검증과 버전 태그 규칙은
+[CONTRIBUTING.md](CONTRIBUTING.md)를 참고하세요.

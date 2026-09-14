@@ -120,6 +120,25 @@ Restart Codex, then run `activitysmith-test` and complete a new short task. New 
 
 To undo a migration, stop affected jobs and run `./install.sh --rollback TRANSACTION_ID --quiesced`, using the ID printed during installation. Keep private recovery journals out of Git. See [upgrade and recovery details](docs/UPGRADING.md).
 
+## Updating after the one-time migration
+
+Versions containing the new updater install the following commands automatically:
+
+```bash
+watchsmith version
+watchsmith update --check
+# Finish active jobs and close affected clients before applying:
+watchsmith update --quiesced
+watchsmith rollback --quiesced
+```
+
+The updater checks official stable releases, verifies the downloaded package,
+and reuses the existing installer and recovery journals. No Git checkout is
+needed after migration. v0.1.0 predates this command and requires one manual
+upgrade to a release containing it. This implementation is not yet a published
+release. See [updates and publishing](docs/UPDATES.md) for verification, trust,
+and recovery limits.
+
 ## What install.sh changes
 
 Files:
@@ -129,6 +148,10 @@ Files:
 ├── AGENTS.md
 ├── config.toml
 ├── bin/
+│   ├── watchsmith
+│   ├── watchsmith_update.py
+│   ├── watchsmith_install.py
+│   ├── watchsmith_config.py
 │   ├── codex-watch
 │   ├── watchsmith_result.py
 │   ├── watchsmith_progress.py
@@ -308,3 +331,8 @@ stop for review. Reinstallation is a no-op once reconciled; removal restores the
 original notifier while retaining Computer Use. No extra first-install action is
 required. External callback execution is separate from watchdog timing; the earlier
 callback timeout is not evidence of a watchdog failure.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for feature branches, Conventional Commits,
+pull requests, validation, and version tags.

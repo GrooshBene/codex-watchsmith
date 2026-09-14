@@ -27,3 +27,6 @@ HANDOFF.md
 /COMMIT_MESSAGE.txt
 /COMMIT_MESSAGE.md
 /docs/COMMIT_MESSAGE.md
+
+# Generated release packages
+/dist/
