@@ -276,3 +276,19 @@ security find-generic-password \
 ## License
 
 MIT
+
+## 설치 안전성 및 로컬 테스트
+
+TOML 검증을 위해 Python 3.11 이상이 필요합니다. `CODEX_HOME`을 지원하며 기본값은 `~/.codex`입니다. 설치된 dispatcher는 자신의 위치를 기준으로 상태 파일과 notifier를 찾으므로 GUI 프로세스가 `CODEX_HOME`을 전달하지 않아도 동작합니다.
+
+installer는 전체 TOML을 검증한 뒤 최상위 `notify`만 교체합니다. 여러 줄 배열과 따옴표로 감싼 키를 지원하며 중첩 설정은 유지합니다. 잘못된 TOML이나 문자열이 아닌 notify 인수가 있으면 설정을 수정하지 않고 중단합니다. 백업 이름은 중복되지 않으며 설정 파일은 원자적으로 교체합니다. 동일한 dispatcher를 재설치하면 기존 notifier 기록을 보존합니다. 기존 notifier가 없었던 경우 JSON `null`을 저장합니다. 복원 정보가 없으면 추측해서 덮어쓰지 않고 재설치·제거를 중단합니다.
+
+제거 시 최상위 notifier가 이 설치의 dispatcher인 경우에만 이전 인수 배열을 복원합니다. 사용자가 변경한 notifier는 유지합니다. notify의 표기 형식은 정규화될 수 있으며 원문은 백업에 남습니다. 전역 정책 갱신과 설치 전체의 롤백은 아직 후속 작업입니다.
+
+실제 Codex 설정을 변경하거나 알림을 보내지 않는 회귀 테스트:
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+테스트는 설치·제거, 기록용 notifier로의 정확한 인수 전달, 모의 CLI를 이용한 일반 완료 명령 구성을 검증합니다. 실제 Computer Use 클라이언트, Codex 이벤트 발생, 모바일 수신을 검증한 것은 아닙니다.

@@ -1,9 +1,28 @@
+# macOS files and local environment secrets
 .DS_Store
 .env
-*.log
-__pycache__/
+.env.*
+!.env.example
+!.env.sample
 
-# Local Codex / Work development context
+# Logs, Python bytecode, and test/tool caches
+*.log
+*.py[cod]
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local agent instructions and execution state
 AGENTS.md
 HANDOFF.md
 .codex/
+.agents/
+
+# Local verification reports and commit-message drafts
+/docs/VERIFICATION.md
+/COMMIT_MESSAGE.txt
+/COMMIT_MESSAGE.md
+/docs/COMMIT_MESSAGE.md

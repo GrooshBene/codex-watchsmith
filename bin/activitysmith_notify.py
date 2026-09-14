@@ -12,6 +12,7 @@ def main():
     if len(sys.argv)!=2: return 0
     try: evt=json.loads(sys.argv[1])
     except Exception: return 0
+    if not isinstance(evt, dict): return 0
     if evt.get('type')!='agent-turn-complete': return 0
     cli=shutil.which('activitysmith'); key=get_key()
     if not cli or not key: return 0

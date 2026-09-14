@@ -18,3 +18,13 @@ security find-generic-password -a "$USER" -s activitysmith-codex -w >/dev/null &
 ```bash
 activitysmith-test
 ```
+
+## Installation stops before changing config
+
+Use Python 3.11+ (`python3 --version`). Invalid TOML and a root `notify` that is not an array of strings are rejected. Correct the reported configuration problem and rerun installation. Multiline notify arrays are supported.
+
+If `previous_notify.json` is missing while the dispatcher is configured, reinstall/uninstall deliberately stops. Review the uniquely named `config.toml.backup.*` files in `${CODEX_HOME:-$HOME/.codex}/watchsmith` and recover the original notify setting before retrying. Do not invent a previous notifier when Computer Use may depend on it. Backups can contain private settings; do not post their contents publicly.
+
+For a custom `CODEX_HOME`, use that same value when installing and removing. The dispatcher itself locates state next to its installation and does not require the variable at runtime. Reinstalling preserves saved argv; uninstall preserves a notifier changed by the user.
+
+Run `python3 -m unittest discover -s tests -v` from the repository for offline regression checks. A passing test suite does not establish mobile Push delivery or real Computer Use behavior.

@@ -166,3 +166,19 @@ The previous notifier is restored when possible. The tagged `AGENTS.md` block an
 ## License
 
 MIT
+
+## Installer safety and local tests
+
+Python 3.11 or newer is required for TOML validation. Installation supports `CODEX_HOME` (default: `~/.codex`). The installed dispatcher finds its state and sibling notifier relative to its own location, including when a GUI process does not export `CODEX_HOME`.
+
+The installer validates the entire TOML document before replacing the root `notify`. Multiline arrays and quoted keys are supported; nested settings remain unchanged. Invalid TOML or non-string notify arguments stop installation without editing the configuration. Backups use unique names, and configuration replacement is atomic. Reinstalling an unchanged dispatcher preserves the saved notifier. A JSON `null` records that no previous notifier existed. Missing saved state stops reinstallation/removal rather than guessing a replacement.
+
+Uninstall restores the saved argument array only if the root notifier is still this installation's dispatcher. A notifier changed by the user is retained. Notify formatting may be normalized; the original text is available in the backup. Global policy updates and full installation rollback are still pending.
+
+Run the isolated regression suite without changing your Codex setup or sending notifications:
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+Tests cover installation/removal, exact argument forwarding to a recording notifier, and generic completion command construction with a mocked CLI. They do not verify the real Computer Use client, Codex event emission, or mobile delivery.
