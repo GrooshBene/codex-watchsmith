@@ -22,6 +22,7 @@ Watchsmith adds notification integration to an existing Codex setup. The install
 - **A working Codex installation:** sign in and confirm you can complete a small task. Install Codex CLI as well if you want to use `codex-watch codex exec`; Desktop alone does not provide that command.
 - **Python 3.11 or newer:** `python3` must be available in your command path. The installer stops if Python or its TOML parser is unavailable.
   The `watchsmith` command selects Python 3.11+ from PATH or common macOS installation locations, even when the default `python3` is older. If no compatible interpreter is found, it prints installation guidance.
+  Updates and guided setup retain the selected Python interpreter through installation; a different default `python3` is not selected again. Initial shell entry points still require Python 3.11+ on PATH.
 - **Node.js and npm:** needed to install and run ActivitySmith CLI using the commands below. See the [ActivitySmith CLI guide](https://activitysmith.com/sdks/cli) for its runtime requirements.
 - **The repository files:** the Quick start uses Git. If Git is unavailable, download and extract the repository ZIP, then open a terminal in that folder and start at `./install.sh`.
 
@@ -349,3 +350,9 @@ callback timeout is not evidence of a watchdog failure.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for feature branches, Conventional Commits,
 pull requests, validation, and version tags.
+
+Live Activities request immediate Lock Screen dismissal when they end, with explicit final status. A successful end request does not prove removal on the device, and ActivitySmith history remains available.
+
+Watchsmith can select stage-based progress, measured percentage, elapsed time, alerts, or measured stats/metrics at the start of a task. Wrapped MCP/watchdog paths share the first selected type until termination. Colour and status text can change without replacing the card. Reviewed completion Push previews can include a task name and brief result via `--share-preview`; the queue route shares the completion hook’s delivery claim. See [progress](docs/PROGRESS.md) and [results](docs/RESULTS.md).
+
+Completion previews can now be queued locally for the existing completion hook, which sends the reviewed task name, outcome and optional verification subtitle instead of a second generic Push. Exact event IDs or a one-use reference in the final response associate the preview; unsupported clients fall back to neutral response-ended wording. See [result delivery](docs/RESULTS.md).

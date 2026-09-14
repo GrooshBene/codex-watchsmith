@@ -87,3 +87,9 @@ state, credentials, and Git history are not packaged. `dist/` is ignored by Git.
 Packaging rejects development versions; a stable VERSION must be committed before tagging. Check the GitHub workflow result for each tag; local tests do not certify a hosted CI run.
 
 On macOS, downloads use `/usr/bin/curl` with system certificate verification and explicit per-hop HTTPS/host checks. This avoids relying on an independently installed Python certificate bundle. TLS verification is never disabled.
+
+## Python selection during installation
+
+The updater runs the verified package's Python installer using its own interpreter, for both preflight and apply. The bootstrap and setup wizard also retain their interpreter. This avoids failing halfway through an update when PATH's default `python3` is older than 3.11. Shell settings are not changed.
+
+An already installed v0.2.1 updater still has the old behavior until upgraded. For that first upgrade, put a Python 3.11+ bin directory first on PATH in the update terminal, then run `watchsmith update --quiesced` after stopping affected tasks. The new implementation takes effect after installation; publishing a newer package cannot change code that is already running.

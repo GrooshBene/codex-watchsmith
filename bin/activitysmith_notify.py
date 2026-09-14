@@ -8,7 +8,7 @@ import sqlite3
 import subprocess
 import sys
 import time
-from watchsmith_delivery import Store, event_key
+from watchsmith_delivery import Store, event_key, MARKER
 
 SERVICE = 'activitysmith-codex'
 HOME = Path(__file__).resolve().parent.parent
@@ -27,11 +27,15 @@ def get_key():
     return p.stdout.strip() if p.returncode == 0 else None
 
 
-def deliver(cli, key):
+def deliver(cli, key, payload=None):
     env = os.environ.copy()
     env['ACTIVITYSMITH_API_KEY'] = key
+    payload = payload or {'title': 'Codex 응답 종료', 'message': '결과 요약을 연결하지 못했습니다. Codex에서 확인해 주세요.'}
+    args = [cli, 'push', '--title', payload['title'], '--message', payload['message']]
+    if payload.get('subtitle'):
+        args += ['--subtitle', payload['subtitle']]
     try:
-        p = subprocess.run([cli, 'push', '--title', 'Codex 작업 완료', '--message', '요청한 에이전트 작업이 완료되었습니다.'], env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=30)
+        p = subprocess.run(args, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=30)
         # CLI 1.10 reports this explicit server response. Other output is unknown.
         if p.returncode == 0 and 'Success: true' in p.stdout:
             return 'accepted'
@@ -63,9 +67,22 @@ def main():
             identity = event_key(evt.get('thread-id'), evt.get('turn-id'))
         except ValueError:
             pass  # Older clients retain best-effort generic completion.
+        preview = None
+        try:
+            final_text = evt.get('last-assistant-message')
+            if identity or (isinstance(final_text, str) and MARKER.search(final_text)):
+                store = Store(HOME)
+                prepared = store.summary(evt)
+                if prepared:
+                    identity, preview = prepared
+        except (OSError, ValueError, sqlite3.Error):
+            if store:
+                store.close()
+            store = None
         if identity:
             try:
-                store = Store(HOME)
+                if store is None:
+                    store = Store(HOME)
                 # A detached notifier worker may wait; dispatcher never blocks old hooks.
                 deadline = time.monotonic() + 125
                 while True:
@@ -80,7 +97,7 @@ def main():
             except (OSError, sqlite3.Error):
                 claim = None
                 print('[watchsmith] delivery store unavailable; generic fallback is not deduplicated', file=sys.stderr)
-        outcome = deliver(cli, key)
+        outcome = deliver(cli, key, preview) if preview else deliver(cli, key)
         if store and claim:
             try:
                 store.finish(identity, claim['token'], outcome)

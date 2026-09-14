@@ -77,6 +77,14 @@ class SetupTests(unittest.TestCase):
 
     def test_source_setup_reuses_key_and_skips_optional_changes(self):
         replies = iter([True, False, False])  # apply, PATH, test notification
+        fake_bin = Path(self.tmp.name) / 'old python bin'
+        fake_bin.mkdir()
+        old_python = fake_bin / 'python3'
+        old_python.write_text('#!/bin/sh\nexit 42\n')
+        old_python.chmod(0o755)
+        path_patch = patch.dict(os.environ, {'PATH': str(fake_bin) + os.pathsep + os.environ['PATH']})
+        path_patch.start()
+        self.addCleanup(path_patch.stop)
         with patch.object(S.sys.stdin, 'isatty', return_value=True), patch.object(S.platform, 'system', return_value='Darwin'), patch.object(S.shutil, 'which', return_value='/fake'), patch.object(S, 'key_present', return_value=True), patch.object(S, 'confirm', side_effect=lambda _: next(replies)), patch.object(S, 'diagnose', return_value=[]), patch.dict(os.environ, os.environ.copy()), contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(S.setup(self.home, ROOT), 0)
         self.assertTrue((self.home / 'bin/watchsmith_setup.py').exists())

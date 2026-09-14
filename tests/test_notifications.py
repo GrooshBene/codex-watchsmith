@@ -130,7 +130,7 @@ class NotificationTests(unittest.TestCase):
         with patch.object(sys, 'argv', ['notify', payload]), patch.object(notifier, 'get_key', return_value='test-key'), patch.object(notifier.shutil, 'which', return_value='/fake/activitysmith'), patch.object(notifier.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, 'Success: true')) as launch:
             self.assertEqual(notifier.main(), 0)
             args = launch.call_args.args[0]
-            self.assertEqual(args, ['/fake/activitysmith', 'push', '--title', 'Codex 작업 완료', '--message', '요청한 에이전트 작업이 완료되었습니다.'])
+            self.assertEqual(args, ['/fake/activitysmith', 'push', '--title', 'Codex 응답 종료', '--message', '결과 요약을 연결하지 못했습니다. Codex에서 확인해 주세요.'])
             self.assertNotIn('PRIVATE', str(launch.call_args))
             self.assertNotIn('SECRET', str(launch.call_args))
 

@@ -59,8 +59,18 @@ callback timeout is not evidence of a watchdog failure.
 
 ## Release updater
 
-`watchsmith update` retrieves and verifies official versioned release assets before invoking the bundled installer. Version/commit/checksum metadata participates in the same installation journal. Installed installer/configuration modules support offline rollback without a checkout. No additional notification or update server is introduced. See [UPDATES.md](UPDATES.md).
+`watchsmith update` retrieves and verifies official versioned release assets before invoking the bundled Python installer with `sys.executable`. The updater, bootstrap, and setup wizard retain their running interpreter when starting the next Python stage instead of reselecting `python3` through a shell. Rollback already uses the running interpreter. Version/commit/checksum metadata participates in the same installation journal. Installed installer/configuration modules support offline rollback without a checkout. No additional notification or update server is introduced. See [UPDATES.md](UPDATES.md).
 
 ## Guided setup
 
 `watchsmith_setup.py` separates interactive configuration from read-only diagnostics. Source-package setup invokes the existing installer; installed setup completes optional connection/PATH steps. The release builder assembles a standalone bootstrap using the same updater verification functions, then starts setup from a verified archive. See [SETUP.md](SETUP.md).
+
+## Live Activity dismissal
+
+MCP agent policy and wrapper CLI termination both specify final status and `auto_dismiss_minutes=0` in the end content state. Remote completion, Lock Screen dismissal, and retained app history are distinct states; only device observation confirms removal. See [PROGRESS.md](PROGRESS.md).
+
+Shared progress contexts now retain a bounded, explicitly supplied content state and immutable type under the existing file lock. New fallback-first contexts choose elapsed timer; legacy contexts retain progress. MCP claims return the chosen content and reject type rotation by returning the existing type. This does not associate Desktop tasks with wrapper runs. The result argument builder separately supports opt-in Lock Screen previews; the hook queue route below shares the existing completion claim.
+
+## Reviewed completion routing
+
+The result helper can stage an approved preview in a private summaries table in the existing delivery database. The notifier resolves exact turn identity or a random final-response reference plus matching thread, binds the result to the event and uses the existing generic-owner claim as the single sender. No transcript summarization or most-recent-file lookup occurs. CLI title/message/subtitle carry only prepared text. Unknown direct-MCP outcomes suppress generic retries. Client preservation of the reference is an integration requirement; storage failures and independent senders remain best-effort.

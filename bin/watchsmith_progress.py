@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Coordinate semantic progress and fallback for one wrapped process, not a Codex turn."""
 import argparse
+import copy
+from datetime import datetime, timezone
 from contextlib import contextmanager
 import fcntl
 import json
@@ -18,6 +20,93 @@ import time
 CONTEXT = 'WATCHSMITH_PROGRESS_CONTEXT'
 LEASE = 90
 
+TYPES = ('progress', 'segmented_progress', 'timer', 'alert', 'stats', 'metrics')
+
+
+def content(value):
+    """Validate bounded, explicitly supplied display data; never inspect task logs."""
+    if not isinstance(value, dict) or value.get('type') not in TYPES:
+        raise ValueError('unsupported activity type')
+    allowed = {'type', 'title', 'subtitle', 'message', 'percentage', 'current_step',
+               'number_of_steps', 'metrics', 'color', 'icon', 'badge',
+               'counts_down', 'timer_start_at'}
+    if set(value) - allowed or len(json.dumps(value, allow_nan=False).encode()) > 4096:
+        raise ValueError('invalid or oversized display content')
+    result = copy.deepcopy(value)
+    def number(v):
+        return type(v) in (int, float) and math.isfinite(v)
+    for field in ('title', 'subtitle', 'message'):
+        if field in result and (not isinstance(result[field], str) or len(result[field]) > 240):
+            raise ValueError('invalid display text')
+    kind = result['type']
+    if kind == 'progress':
+        v = result.get('percentage')
+        if not number(v) or not 0 <= v <= 100:
+            raise ValueError('progress requires a percentage from 0 to 100')
+    elif kind == 'segmented_progress':
+        step, total = result.get('current_step'), result.get('number_of_steps')
+        if type(step) is not int or type(total) is not int or not 1 <= step <= total <= 100:
+            raise ValueError('segmented progress requires valid current and total steps')
+    elif kind in ('stats', 'metrics'):
+        values = result.get('metrics')
+        if not isinstance(values, list) or not 1 <= len(values) <= 8:
+            raise ValueError('numeric displays require explicit measured values')
+        for row in values:
+            if not isinstance(row, dict) or set(row) - {'label', 'value', 'unit'}:
+                raise ValueError('invalid metric')
+            if not isinstance(row.get('label'), str) or not row['label'] or len(row['label']) > 80:
+                raise ValueError('invalid metric label')
+            v = row.get('value')
+            if not number(v) and not (kind == 'stats' and isinstance(v, str) and 0 < len(v) <= 80):
+                raise ValueError('invalid metric value')
+            if 'unit' in row and (not isinstance(row['unit'], str) or len(row['unit']) > 20):
+                raise ValueError('invalid metric unit')
+    elif kind == 'alert' and not result.get('message'):
+        raise ValueError('alert requires a message')
+    elif kind == 'timer':
+        # Elapsed time only: do not invent deadlines or reset on handover.
+        if result.get('counts_down', False) is not False:
+            raise ValueError('only elapsed timers are supported by the wrapper')
+        result['counts_down'] = False
+        if 'timer_start_at' in result:
+            if not isinstance(result['timer_start_at'], str):
+                raise ValueError('invalid timer start')
+            stamp = datetime.fromisoformat(result['timer_start_at'].replace('Z', '+00:00'))
+            if stamp.tzinfo is None:
+                raise ValueError('timer requires a timezone')
+    return result
+
+
+def selected(data, requested=None):
+    current = data.get('content_state')
+    if current is None:
+        current = content(requested) if requested else {'type': 'progress', 'percentage': 0}
+    elif requested is not None and requested.get('type') == current['type']:
+        current = content(requested)
+    else:
+        current = content(current)
+    if current['type'] == 'timer':
+        current['timer_start_at'] = data.get('content_state', {}).get('timer_start_at') or current.get('timer_start_at') or datetime.fromtimestamp(data.get('started_at', time.time()), timezone.utc).isoformat()
+    data['content_state'] = current
+    return copy.deepcopy(current)
+
+
+def display(data, code=None):
+    result = selected(data)
+    result.update(title='Codex 작업 중' if code is None else 'Codex 실행 종료',
+                  subtitle='실행이 계속되고 있습니다' if code is None else
+                  ('명령이 종료되었습니다' if code == 0 else '명령이 정상 종료되지 않았습니다'),
+                  color='blue' if code is None else ('green' if code == 0 else 'red'))
+    if result['type'] == 'alert':
+        result['message'] = result['subtitle']
+    if code is not None:
+        result['auto_dismiss_minutes'] = 0
+        if result['type'] == 'timer':
+            result.update(is_running=False, timer_pause_at=datetime.now(timezone.utc).isoformat())
+        if 'badge' in result:
+            result['badge'] = {'title': '실행 종료' if code == 0 else '실행 실패'}
+    return result
+
 
 @contextmanager
 def state(path):
@@ -32,18 +121,24 @@ def state(path):
         file.flush()
 
 
-def claim(path, now=None):
+def claim(path, now=None, content_state=None):
+    if content_state is not None:
+        content_state = content(content_state)
     now = time.time() if now is None else now
     with state(path) as data:
         if data['closed']:
             return {'action': 'skip', 'reason': 'run-ended'}
         if data['pending_until'] > now:
             return {'action': 'wait'}
+        requested_type = content_state.get('type') if content_state else None
+        chosen = selected(data, content_state)
         token = secrets.token_hex(24)
         data['previous_stream'] = data['may_have_stream']
         data.update(token=token, pending_until=now + LEASE, may_have_stream=True)
         return {'action': 'send', 'token': token, 'stream_key': data['stream_key'],
-                'content_state_type': 'progress', 'lease_seconds': LEASE}
+                'content_state_type': chosen['type'], 'content_state': chosen,
+                'type_locked': requested_type is not None and requested_type != chosen['type'],
+                'lease_seconds': LEASE}
 
 
 def finish(path, token, outcome):
@@ -62,7 +157,7 @@ def finish(path, token, outcome):
 def ended(path):
     with state(path) as data:
         # The agent has explicitly acknowledged the remote end; keep fallback quiet.
-        data.update(semantic_active=True, may_have_stream=False, token='', pending_until=0)
+        data.update(closed=True, semantic_active=True, may_have_stream=False, token='', pending_until=0)
 
 
 def invoke(cli, args, env):
@@ -86,10 +181,11 @@ def fallback(path, cli, env, now=None):
         help_result = invoke(cli, ['activity', 'stream', '--help'], env)
         if help_result is not None and help_result.returncode == 0:
             # Share the MCP key and type, including after an uncertain MCP outcome.
+            if 'content_state' not in data and data.get('schema_version') == 2:
+                selected(data, {'type': 'timer', 'counts_down': False})
             data['may_have_stream'] = True
             invoke(cli, ['activity', 'stream', data['stream_key'], '--content-state',
-                         json.dumps({'type': 'progress', 'title': 'Codex 작업 중',
-                                     'subtitle': '실행이 계속되고 있습니다', 'percentage': 0})], env)
+                         json.dumps(display(data))], env)
         elif not data['may_have_stream']:
             invoke(cli, ['push', '--title', 'Codex 작업 진행 중',
                          '--message', '설정한 대기 시간을 넘어 실행이 계속되고 있습니다.'], env)
@@ -100,11 +196,10 @@ def close_run(path, cli, env, code):
         data['closed'] = True
         end = data['may_have_stream'] or bool(data['token'])
         key = data['stream_key']
+        final = display(data, code) if end else None
     if end:
-        invoke(cli, ['activity', 'end-stream', key, '--content-state', json.dumps({
-            'type': 'progress', 'title': 'Codex 실행 종료',
-            'subtitle': '명령이 종료되었습니다' if code == 0 else '명령이 정상 종료되지 않았습니다',
-            'percentage': 100 if code == 0 else 0})], env)
+        invoke(cli, ['activity', 'end-stream', key, '--content-state', json.dumps(final)], env)
+
 
 
 def run(command):
@@ -131,7 +226,8 @@ def run(command):
             pass
     with tempfile.TemporaryDirectory(prefix='watchsmith-progress-') as directory:
         path = Path(directory) / 'state.json'
-        path.write_text(json.dumps({'stream_key': 'watchsmith-' + secrets.token_hex(16),
+        path.write_text(json.dumps({'schema_version': 2, 'started_at': time.time(),
+                                   'stream_key': 'watchsmith-' + secrets.token_hex(16),
                                    'closed': False, 'token': '', 'pending_until': 0,
                                    'semantic_active': False, 'may_have_stream': False,
                                    'fallback_attempted': False}))
@@ -156,14 +252,14 @@ def run(command):
                 if monitoring and time.monotonic() >= deadline:
                     try:
                         fallback(path, cli, env)
-                    except (OSError, ValueError, KeyError):
+                    except (OSError, ValueError, KeyError, TypeError):
                         monitoring = False
                         print('[watchsmith] progress state unavailable; command continues', file=sys.stderr)
                 time.sleep(.2)
             code = child.returncode
             try:
                 close_run(path, cli, env, code)
-            except (OSError, ValueError, KeyError):
+            except (OSError, ValueError, KeyError, TypeError):
                 print('[watchsmith] stream cleanup unavailable', file=sys.stderr)
             return code if code >= 0 else 128 - code
         finally:
@@ -176,7 +272,8 @@ def main():
     sub = parser.add_subparsers(dest='action', required=True)
     runner = sub.add_parser('run')
     runner.add_argument('command', nargs=argparse.REMAINDER)
-    sub.add_parser('claim')
+    claimant = sub.add_parser('claim')
+    claimant.add_argument('--content-state', help='reviewed JSON display; first claimant selects type')
     sub.add_parser('ended')
     ack = sub.add_parser('finish')
     ack.add_argument('--token', required=True)
@@ -196,11 +293,11 @@ def main():
             ended(path)
             print(json.dumps({'recorded': True}))
             return 0
-        result = claim(path) if args.action == 'claim' else {
+        result = claim(path, content_state=json.loads(args.content_state) if args.content_state else None) if args.action == 'claim' else {
             'recorded': finish(path, args.token, args.outcome)}
         print(json.dumps(result))
         return 0
-    except (OSError, ValueError, KeyError):
+    except (OSError, ValueError, KeyError, TypeError):
         print('[watchsmith] progress context unavailable; do not infer another run', file=sys.stderr)
         return 1
 

@@ -5,5 +5,8 @@
   "changes": "비민감 예시 항목을 정리했습니다. 실제 작업 결과가 아닙니다.",
   "verification": "예시 검사 3개 통과. 실제 테스트 수치가 아닙니다.",
   "limitations": "기기 화면 표시 여부는 사용자 확인이 필요합니다.",
-  "next_step": "ActivitySmith 기록에서 상세 항목과 줄바꿈을 확인합니다."
+  "next_step": "ActivitySmith 기록에서 상세 항목과 줄바꿈을 확인합니다.",
+  "task_name": "알림 개선 예시",
+  "notification_summary": "작업명과 결과를 구분해 표시하는 예시입니다.",
+  "notification_verification": "예시 데이터이며 실제 검증 결과가 아닙니다."
 }

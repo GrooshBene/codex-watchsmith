@@ -26,6 +26,22 @@ class ResultTests(unittest.TestCase):
         self.assertNotIn('payload', payload)
         self.assertNotIn('redirection', payload)
 
+    def test_preview_is_explicit_and_independent_of_metadata(self):
+        record = dict(EXAMPLE, task_name='업데이터 수정', notification_summary='Python 전달 수정. 검증 통과.')
+        self.assertNotIn(record['task_name'], json.dumps(RESULT.build_payload(record), ensure_ascii=False))
+        for state, label in RESULT.LABELS.items():
+            for details in (False, True):
+                payload = RESULT.build_payload(dict(record, status=state), share_details=details, share_preview=True)
+                self.assertEqual(payload['title'], '업데이터 수정 · ' + label)
+                self.assertEqual(payload['message'], record['notification_summary'])
+                self.assertEqual('metadata' in payload, details)
+        with self.assertRaises(ValueError):
+            RESULT.build_payload({k: v for k, v in EXAMPLE.items() if k not in ('task_name', 'notification_summary')}, share_preview=True)
+        with self.assertRaises(ValueError):
+            RESULT.build_payload(dict(record, task_name='bad\nline'), share_preview=True)
+        with self.assertRaises(ValueError):
+            RESULT.build_payload(dict(record, notification_summary='a' * 181), share_preview=True)
+
     def test_links_need_separate_opt_in(self):
         record = dict(EXAMPLE, result_url='https://example.com/report')
         self.assertNotIn('redirection', RESULT.build_payload(record, True))
@@ -51,6 +67,22 @@ class ResultTests(unittest.TestCase):
         record.update({field: '한' * 1500 for field in RESULT.FIELDS})
         with self.assertRaises(ValueError):
             RESULT.build_payload(record, True)
+
+    def test_queue_cli_stages_preview_and_requires_explicit_sharing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'result.json'
+            source.write_text(json.dumps(dict(EXAMPLE, task_name='작업', notification_summary='검증 완료', notification_verification='5개 통과')))
+            args = [sys.executable, str(ROOT / 'bin/watchsmith_result.py'), str(source),
+                    '--queue-for-hook', '--home', directory, '--thread-id', 'thread']
+            rejected = subprocess.run(args, capture_output=True, text=True)
+            self.assertEqual(rejected.returncode, 2)
+            self.assertFalse((Path(directory) / 'watchsmith').exists())
+            result = subprocess.run(args + ['--share-preview'], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            staged = json.loads(result.stdout)
+            self.assertTrue(staged['queued'])
+            self.assertIn('watchsmith-result:', staged['final_marker'])
+            self.assertNotIn('검증 완료', result.stdout)
 
     def test_cli_is_local_and_errors_do_not_echo_content(self):
         with tempfile.TemporaryDirectory() as directory:
