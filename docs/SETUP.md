@@ -1,8 +1,6 @@
 # Guided setup and diagnostics
 
-This feature is in development on top of the updater branch; v0.1.0 does not
-contain it. No published bootstrap URL should be treated as available until a
-release with `watchsmith-bootstrap.py` has been published.
+Guided setup is available in v0.2.0 and later. v0.1.0 does not contain the wizard or bootstrap asset.
 
 ## Start from a downloaded package or checkout
 
@@ -57,11 +55,10 @@ Interactive setup requires a terminal and cannot be piped unattended. Existing
 The wizard's consent to install includes confirmation that affected jobs have
 finished; it does not terminate user processes.
 
-## Future one-command entry point
+## One-command entry point
 
 The release builder creates a standalone `watchsmith-bootstrap.py` asset from the
-same committed updater verification code and bootstrap entry point. After a
-supporting release is published, macOS users with Python 3.11+ can run:
+same committed updater verification code and bootstrap entry point. For v0.2.0 and later, macOS users with Python 3.11+ can run:
 
 ```bash
 ( installer_file=$(mktemp) && trap 'rm -f "$installer_file"' EXIT && curl --proto '=https' --tlsv1.2 -fsSL https://github.com/GrooshBene/codex-watchsmith/releases/latest/download/watchsmith-bootstrap.py -o "$installer_file" && python3 "$installer_file" )
@@ -77,6 +74,5 @@ signatures. Missing assets, network errors, or verification failures stop before
 setup. A download-and-inspect-first workflow is also supported by saving the
 bootstrap file and running it manually.
 
-Hosted bootstrap delivery and actual user authorization prompts must be checked
-on a future release. Local tests verify generated bootstrap behavior with mocked
+Hosted bootstrap delivery should be verified for each release; actual user authorization prompts depend on the local environment. Local tests verify generated bootstrap behavior with mocked
 transport and temporary installations; they do not certify a live release.

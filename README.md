@@ -61,7 +61,7 @@ You do not need to remove an existing `notify` setting: the installer saves it a
 
 The installer's completion message means local files and configuration have been installed. Finish the CLI installation, command-path setup, Keychain registration, connection test, and Codex restart below before treating notification setup as complete.
 
-## Guided installation (upcoming release)
+## Guided installation (v0.2.0+)
 
 From a checkout or release package containing the setup wizard, run `./setup.sh`.
 It checks prerequisites, offers missing CLI installation, preserves existing
@@ -70,9 +70,7 @@ and sends one test notification. Account/device pairing and MCP authorization
 remain separate guided steps.
 
 After installation, use `watchsmith setup` to finish skipped steps and
-`watchsmith doctor` (or `--json`) for read-only local diagnostics. The initial
-bootstrap entry point will be available with a future supporting release; v0.1.0
-does not include it. See [guided setup](docs/SETUP.md) for the single-command flow
+`watchsmith doctor` (or `--json`) for read-only local diagnostics. The bootstrap entry point is included in v0.2.0 and later; v0.1.0 does not include it. See [guided setup](docs/SETUP.md) for the single-command flow
 and remaining prerequisites. The manual path below remains available.
 
 ## New installation
@@ -149,8 +147,7 @@ watchsmith rollback --quiesced
 The updater checks official stable releases, verifies the downloaded package,
 and reuses the existing installer and recovery journals. No Git checkout is
 needed after migration. v0.1.0 predates this command and requires one manual
-upgrade to a release containing it. This implementation is not yet a published
-release. See [updates and publishing](docs/UPDATES.md) for verification, trust,
+upgrade to a release containing it. These commands are included in v0.2.0 and later. See [updates and publishing](docs/UPDATES.md) for verification, trust,
 and recovery limits.
 
 ## What install.sh changes

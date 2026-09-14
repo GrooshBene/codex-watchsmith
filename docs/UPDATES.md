@@ -1,8 +1,6 @@
 # Release updates
 
-This update foundation is in development after v0.1.0. The existing v0.1.0
-release does not contain the updater or its release assets. No new release is
-published merely by adding this implementation.
+The updater and guided setup are included in v0.2.0 and later. The v0.1.0 release does not contain the updater or its release assets.
 
 ## One-time migration
 
@@ -31,7 +29,7 @@ watchsmith rollback --quiesced
 watchsmith rollback --transaction TRANSACTION_ID --quiesced
 ```
 
-`v0.2.0` is an example, not a claim that this release exists. `--check` reads
+Replace `v0.2.0` with the newer stable version you want to install. `--check` reads
 GitHub release metadata and displays the installed/available versions and a
 release-notes link without changing local files. It checks asset availability,
 not the package contents. Application downloads and verifies the package before
@@ -86,8 +84,6 @@ python3 scripts/build-release.py --ref vX.Y.Z --output dist
 The builder reads the exact Git commit, not uncommitted work. Packages include
 runtime/configuration files and user documentation; tests, local reports, agent
 state, credentials, and Git history are not packaged. `dist/` is ignored by Git.
-The current development version is `0.2.0-dev`; packaging intentionally rejects
-it until a stable version is committed. The GitHub workflow itself must be
-verified on a future tag; local tests do not certify a hosted CI run.
+Packaging rejects development versions; a stable VERSION must be committed before tagging. Check the GitHub workflow result for each tag; local tests do not certify a hosted CI run.
 
 On macOS, downloads use `/usr/bin/curl` with system certificate verification and explicit per-hop HTTPS/host checks. This avoids relying on an independently installed Python certificate bundle. TLS verification is never disabled.

@@ -112,7 +112,11 @@ class UpdateTests(unittest.TestCase):
     def test_install_update_and_rollback_without_git_at_runtime(self):
         env = dict(os.environ, CODEX_HOME=str(self.home))
         subprocess.run(['zsh', str(ROOT / 'install.sh')], env=env, capture_output=True, check=True)
-        before = (self.home / 'watchsmith/installation.json').read_bytes()
+        manifest_path = self.home / 'watchsmith/installation.json'
+        old_manifest = json.loads(manifest_path.read_text())
+        old_manifest['release']['version'] = '0.1.0'
+        manifest_path.write_text(json.dumps(old_manifest))
+        before = manifest_path.read_bytes()
         runtime_before = (self.home / 'bin/watchsmith_update.py').read_bytes()
         with patch.object(U, 'download', side_effect=lambda url, limit: self.checksum.encode() if url.endswith('SHA256SUMS') else self.blob):
             self.assertEqual(self.call('update', '--quiesced'), 0)
