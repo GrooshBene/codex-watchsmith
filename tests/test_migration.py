@@ -118,3 +118,91 @@ class MigrationTests(unittest.TestCase):
         cfg = (self.home / 'config.toml').read_bytes()
         self.run_installer('--check', '--rollback', 'latest', '--quiesced', expected=2)
         self.assertEqual(cfg, (self.home / 'config.toml').read_bytes())
+
+    def test_upgrade_from_manifest_without_progress_helper_then_uninstall(self):
+        self.run_installer()
+        path = self.home / 'watchsmith/installation.json'
+        data = json.loads(path.read_text())
+        data['baseline'].pop('bin/watchsmith_progress.py')
+        data['installed_hashes'].pop('bin/watchsmith_progress.py')
+        path.write_text(json.dumps(data))
+        (self.home / 'bin/watchsmith_progress.py').unlink()
+        self.run_installer('--upgrade', '--quiesced')
+        self.assertTrue((self.home / 'bin/watchsmith_progress.py').exists())
+        self.run_installer('--quiesced', script='uninstall.sh')
+        self.assertFalse((self.home / 'bin/watchsmith_progress.py').exists())
+
+    def test_older_transaction_can_restore_without_new_helper(self):
+        before, after, _ = M.prepare(self.home)
+        before.pop('bin/watchsmith_progress.py')
+        after.pop('bin/watchsmith_progress.py')
+        M.transact(self.home, before, after, 'install')
+        self.run_installer('--rollback', 'latest', '--quiesced')
+        self.assertEqual(before, {p: M.image(self.home / p) for p in before})
+
+    def test_computer_use_stays_outer_on_fresh_install_and_reinstall(self):
+        import tomllib
+        prefix = ['/example/SkyComputerUseClient', 'turn-ended']
+        original = M.wrap_computer(prefix, ['original-notifier', 'literal argument'])
+        (self.home / 'config.toml').write_text('notify = ' + json.dumps(original))
+        self.run_installer()
+        root = tomllib.loads((self.home / 'config.toml').read_text())['notify']
+        self.assertEqual(M.computer_wrapper(root)[0], prefix)
+        self.assertTrue(M.is_dispatcher(M.computer_wrapper(root)[1], self.home / 'bin/watchsmith_notify_dispatcher.py'))
+        self.assertEqual(json.loads((self.home / 'watchsmith/previous_notify.json').read_text()), ['original-notifier', 'literal argument'])
+        self.assertEqual(json.loads(self.run_installer('--check').stdout)['changes'], [])
+        self.run_installer()
+        self.run_installer('--quiesced', script='uninstall.sh')
+        self.assertEqual(tomllib.loads((self.home / 'config.toml').read_text())['notify'], original)
+
+    def test_restart_rewrap_reconciles_old_saved_envelope_and_rolls_back(self):
+        prefix = ['/example/SkyComputerUseClient', 'turn-ended']
+        original = M.wrap_computer(prefix, ['existing'])
+        (self.home / 'config.toml').write_text('notify = ' + json.dumps(original))
+        self.run_installer()
+        # Reproduce the prior release after Desktop restart: CUA -> D -> CUA -> N.
+        saved = self.home / 'watchsmith/previous_notify.json'
+        saved.write_text(json.dumps(original) + '\n')
+        manifest_path = self.home / 'watchsmith/installation.json'
+        manifest = json.loads(manifest_path.read_text())
+        manifest['installed_previous_notify'] = original
+        manifest_path.write_text(json.dumps(manifest))
+        root_before = (self.home / 'config.toml').read_bytes()
+        self.run_installer('--upgrade', '--quiesced')
+        self.assertEqual((self.home / 'config.toml').read_bytes(), root_before)
+        self.assertEqual(json.loads(saved.read_text()), ['existing'])
+        self.assertEqual(json.loads(self.run_installer('--check').stdout)['changes'], [])
+        self.run_installer('--rollback', 'latest', '--quiesced')
+        self.assertEqual(json.loads(saved.read_text()), original)
+
+    def test_wrapper_added_after_install_is_preserved_on_removal(self):
+        import tomllib
+        (self.home / 'config.toml').write_text('notify = ["existing"]')
+        self.run_installer()
+        dispatcher = tomllib.loads((self.home / 'config.toml').read_text())['notify']
+        prefix = ['/example/SkyComputerUseClient', 'turn-ended']
+        (self.home / 'config.toml').write_text('notify = ' + json.dumps(M.wrap_computer(prefix, dispatcher)))
+        self.run_installer('--upgrade', '--quiesced')
+        self.run_installer('--quiesced', script='uninstall.sh')
+        self.assertEqual(tomllib.loads((self.home / 'config.toml').read_text())['notify'], M.wrap_computer(prefix, ['existing']))
+
+    def test_wrapped_dispatcher_without_manifest_is_rejected(self):
+        (self.home / 'watchsmith').mkdir()
+        (self.home / 'watchsmith/previous_notify.json').write_text('null')
+        root = M.wrap_computer(['/example/SkyComputerUseClient', 'turn-ended'], ['python3', str(self.home / 'bin/watchsmith_notify_dispatcher.py')])
+        (self.home / 'config.toml').write_text('notify = ' + json.dumps(root))
+        self.run_installer('--check', expected=1)
+
+    def test_changed_computer_use_executable_is_not_overwritten(self):
+        import tomllib
+        original = M.wrap_computer(['/old/SkyComputerUseClient', 'turn-ended'], ['existing'])
+        (self.home / 'config.toml').write_text('notify = ' + json.dumps(original))
+        self.run_installer()
+        config = self.home / 'config.toml'
+        current = tomllib.loads(config.read_text())['notify']
+        current[0] = '/new/SkyComputerUseClient'
+        config.write_text('notify = ' + json.dumps(current))
+        before = {p: M.image(self.home / p) for p in M.TRACKED}
+        self.run_installer('--check', expected=1)
+        self.run_installer('--quiesced', script='uninstall.sh')
+        self.assertEqual(before, {p: M.image(self.home / p) for p in M.TRACKED})

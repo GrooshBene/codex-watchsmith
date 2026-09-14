@@ -90,14 +90,21 @@ def policy_text(home):
     path = home / 'AGENTS.md'
     old = path.read_text() if path.exists() else ''
     template = (Path(__file__).resolve().parent.parent / 'config/activitysmith-agents.md').read_text().rstrip()
-    if not old.count(POLICY_BEGIN) and not old.count(POLICY_END):
+    legacy_begin = '<!-- BEGIN activitysmith autonomous workflow -->'
+    legacy_end = '<!-- END activitysmith autonomous workflow -->'
+    has_current = POLICY_BEGIN in old or POLICY_END in old
+    has_legacy = legacy_begin in old or legacy_end in old
+    if has_current and has_legacy:
+        raise ValueError('both legacy and current policy blocks exist; review before migration')
+    begin, ending = (legacy_begin, legacy_end) if has_legacy else (POLICY_BEGIN, POLICY_END)
+    if not old.count(begin) and not old.count(ending):
         return old, old + ('\n\n' if old else '') + template + '\n'
-    if old.count(POLICY_BEGIN) != 1 or old.count(POLICY_END) != 1:
+    if old.count(begin) != 1 or old.count(ending) != 1:
         raise ValueError('ambiguous Watchsmith policy markers; review AGENTS.md before reinstalling')
-    start, end = old.index(POLICY_BEGIN), old.index(POLICY_END)
+    start, end = old.index(begin), old.index(ending)
     if end < start:
         raise ValueError('invalid Watchsmith policy marker order')
-    return old, old[:start] + template + old[end + len(POLICY_END):]
+    return old, old[:start] + template + old[end + len(ending):]
 
 
 def install_policy(home):

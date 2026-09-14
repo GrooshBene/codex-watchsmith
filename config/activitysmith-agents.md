@@ -22,11 +22,20 @@
 
 
 ## 완료 알림 조율
-- 기존 지침·ActivitySmith MCP·외부 watchdog의 역할을 유지한다. watchdog이 MCP 호출 성공 여부를 자동 감지한다고 설명하지 않는다.
+- 기존 지침·ActivitySmith MCP·외부 watchdog의 역할을 유지한다. watchdog은 아래 공통 실행 상태에 기록한 MCP 결과만 확인한다. 다른 클라이언트의 호출을 자동 감지한다고 설명하지 않는다.
 - 실행 환경에서 hook과 동일한 정확한 thread-id 및 turn-id를 제공하는 경우에만 watchsmith_delivery.py claim을 사용해 상세 완료 알림의 전송권을 얻는다. thread ID만으로 turn을 추정하거나 로그의 최근 항목을 임의로 선택하지 않는다.
 - claim 결과가 send일 때만 기존 ActivitySmith MCP로 전송한다. 반환된 correlation_tag만 tags에 추가하고, 원본 Codex ID는 보내지 않는다. wait/skip이면 상세 결과를 로컬에 보관한다.
 - 명시적 MCP 성공 응답 후 같은 ID와 token으로 finish --outcome accepted를 기록한다. 전송 결과가 불명확하면 unknown으로 기록하고 무작정 재전송하지 않는다. 이 조율은 사용자 동의를 대체하지 않는다.
 - turn ID가 제공되지 않으면 자동 상세/일반 중복 제거를 보장하지 않는다. 일반 hook은 유지하고, 동의한 상세 공유를 수행했다면 별도 hook 알림이 올 수 있음을 구분한다.
 - 같은 설치의 일반 notifier는 전송 기록을 공유한다. 다른 사용자 notifier·MCP 클라이언트의 독립 전송까지 제거된다고 주장하지 않는다.
+
+## wrapper 안의 진행 알림 조율
+- WATCHSMITH_PROGRESS_CONTEXT와 WATCHSMITH_PROGRESS_HELPER가 제공되면 python3 "$WATCHSMITH_PROGRESS_HELPER" claim을 Live Activity 시작/업데이트 전에 실행한다. 이 환경은 codex-watch가 감싼 단일 프로세스 실행 범위이며 turn ID가 아니다.
+- send일 때만 반환된 stream_key로 기존 set_live_activity_stream을 호출한다. content_state.type은 progress로 고정하고 같은 키를 유지한다. 작업명/단계는 title/subtitle, 진행률을 알 때만 percentage에 담는다. 대상 채널은 기본값을 유지한다.
+- MCP 호출 직후 python3 "$WATCHSMITH_PROGRESS_HELPER" finish --token <반환 token> --outcome accepted를 명시적 성공에만 기록한다. 실패는 failed, 불명확한 응답은 unknown으로 기록한다. claim은 90초 유효하므로 호출 직전에 얻고, 전송 전에 만료됐다면 다시 claim한다. 동일 상태를 위한 원격 heartbeat는 보내지 않는다.
+- wait이면 진행 알림을 중복 시작하지 않는다. 다음 의미 있는 단계에서 다시 claim할 수 있다. skip이면 종료된 실행이므로 새로 보내지 않는다. 환경이 없거나 helper가 unavailable/오류를 반환하면 연결됐다고 가정하지 않고 기존 MCP 지침을 따른다.
+- 성공 등록된 진행 알림은 해당 프로세스가 끝날 때까지 watchdog fallback을 억제한다. watchdog이 먼저 시작했어도 같은 stream_key/type으로 의미 있는 단계부터 이어받는다. wrapper는 프로세스 종료 때 남은 stream을 CLI로 한 번 종료 시도한다.
+- 에이전트가 먼저 종료할 때는 기존 MCP end_live_activity_stream을 한 번 호출하고, 명시적 성공 후 python3 "$WATCHSMITH_PROGRESS_HELPER" ended를 기록한다. 이를 통해 wrapper의 중복 종료를 막는다. CLI에 end-stream이 없는 환경에서는 이 MCP 종료가 필요하다.
+- 이 실행 식별자를 완료 알림의 thread/turn ID 대신 사용하지 않는다. Desktop 및 interactive session의 turn별 연결을 보장하지 않는다.
 
 <!-- END codex-watchsmith activitysmith workflow -->

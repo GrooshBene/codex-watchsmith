@@ -77,24 +77,64 @@ MCP 인증과 CLI용 API Key는 별개입니다. MCP는 에이전트가 직접 �
 
 설치 프로그램의 완료 메시지는 로컬 파일과 설정의 설치가 끝났다는 뜻입니다. 아래의 CLI 설치, 명령 경로 등록, Keychain 등록, 연결 테스트, Codex 재시작까지 마쳐야 알림 설정이 완료됩니다.
 
-## 빠른 설치
+## 신규 설치
+
+이미 설치했거나 레거시 버전을 사용 중이라면 아래 **기존 컴퓨터 업그레이드** 절차를 따르세요. 먼저 삭제하거나 기존 `notify` 설정을 지울 필요가 없습니다.
+
+1. 위 사전 준비를 마친 뒤 저장소를 내려받고 설치합니다.
 
 ```bash
 git clone https://github.com/GrooshBene/codex-watchsmith.git
 cd codex-watchsmith
-./install.sh
-
 npm i -g activitysmith-cli@latest
-echo 'export PATH="$HOME/.codex/bin:$PATH"' >> ~/.zshrc
-source ~/.zshrc
+./install.sh --check
+./install.sh
+```
 
+2. 아래 줄을 `~/.zshrc`에 **한 번만** 추가하고 새 터미널을 여세요. 사용자 지정 `CODEX_HOME`을 쓴다면 설치 때와 같은 값을 유지합니다.
+
+```bash
+export PATH="${CODEX_HOME:-$HOME/.codex}/bin:$PATH"
+```
+
+3. API 키를 Keychain에 저장하고 CLI 연결을 확인합니다.
+
+```bash
 activitysmith-keychain-setup
 activitysmith-test
 ```
 
-설치 후 Codex를 완전히 종료했다가 다시 실행하세요.
+4. 작업 단계별 진행 알림이나 상세 결과가 필요하면 ActivitySmith MCP 인증도 별도로 완료합니다. Codex를 재시작하고 새 작업을 시작해야 변경된 전역 지침과 notify 설정을 읽습니다.
+5. 짧은 작업을 완료해 휴대폰 알림을 확인합니다. 진행 알림 조율을 사용하려면 `codex-watch codex exec "작업 내용"`으로 실행하세요. Desktop을 여는 것만으로 이 watchdog이 시작되지는 않습니다.
 
-ActivitySmith MCP는 별도로 Codex에 연결되어 있어야 합니다. MCP는 진행 상태를 의미 있게 전달하는 데 사용하고, CLI/API Key는 외부 notifier와 watchdog에서 사용합니다.
+`--check`는 파일을 바꾸지 않습니다. 설치기는 복구 기록을 남기고 기존 notifier를 보존합니다. 로컬 설치 성공과 실제 휴대폰 수신 확인은 별개입니다.
+
+## 기존 컴퓨터 업그레이드
+
+업데이트된 저장소 파일과 **기존 설치 위치**를 사용합니다. 수정 사항이 없는 Git 작업 폴더에서는 `git pull --ff-only`로 공개된 업데이트를 받을 수 있습니다. 로컬 변경이 있다면 먼저 보존하세요.
+
+```bash
+cd /path/to/codex-watchsmith
+# 사용자 지정 위치를 쓰는 경우에만 기존 CODEX_HOME을 먼저 지정합니다.
+./install.sh --check
+```
+
+진행 중인 Codex/watchdog 작업을 마치고 관련 앱을 닫은 뒤, 별도 터미널에서 실행합니다.
+
+```bash
+./install.sh --upgrade --quiesced
+./install.sh --check
+```
+
+두 번째 점검의 `changes`가 빈 배열이면 설치 파일이 현재 저장소와 일치합니다. `--quiesced`는 관련 작업이 멈췄다는 사용자의 확인이며, 프로세스를 자동 종료하는 옵션은 아닙니다.
+
+dispatcher, 완료 전송 기록, 결과 변환기, 진행 상태 helper와 wrapper를 함께 설치합니다. 식별 가능한 예전 ActivitySmith 지침 구간은 새 관리 구간으로 교체해 지침이 이중으로 남지 않게 합니다. 구간 밖 개인 지침, 기존 notifier 인수, Keychain 키와 MCP 인증은 보존합니다. 지침 구간이 모호하거나 관리 파일이 수정돼 있으면 검토를 위해 중단합니다.
+
+Keychain에 정상 키가 있으면 키를 다시 등록할 필요가 없습니다. 예전 셸 설정에 `ACTIVITYSMITH_API_KEY`를 직접 내보내는 줄이 있다면 먼저 Keychain 키를 확인한 뒤 그 줄을 제거하고 새 터미널을 여세요. 이미 실행 중인 셸의 환경값은 재시작하거나 명시적으로 해제하기 전까지 유지됩니다.
+
+Codex를 재시작한 뒤 `activitysmith-test`와 새 작업의 완료 알림을 확인하세요. 새로 감싼 명령부터 공통 진행 상태가 전달되며, 기존 세션에 소급 적용되지는 않습니다. Computer Use 재시작 처리는 아래에 설명돼 있습니다. 외부 callback 실행과 Watchsmith 설치 검증은 구분합니다.
+
+되돌리려면 관련 작업을 멈추고 설치 시 출력된 ID로 `./install.sh --rollback TRANSACTION_ID --quiesced`를 실행합니다. 비공개 복구 기록은 Git에 넣지 마세요. [업데이트·복구 상세 안내](docs/UPGRADING.md)를 참고하세요.
 
 ## 설치 프로그램이 하는 일
 
@@ -107,6 +147,7 @@ ActivitySmith MCP는 별도로 Codex에 연결되어 있어야 합니다. MCP는
 ├── bin/
 │   ├── codex-watch
 │   ├── watchsmith_result.py
+│   ├── watchsmith_progress.py
 │   ├── watchsmith_delivery.py
 │   ├── activitysmith_notify.py
 │   ├── watchsmith_notify_dispatcher.py
@@ -121,7 +162,7 @@ ActivitySmith MCP는 별도로 Codex에 연결되어 있어야 합니다. MCP는
 
 기존 `config.toml`에 top-level `notify`가 존재하면 installer가 argv를 `previous_notify.json`에 보존합니다.
 
-그다음 Codex의 notifier는 Watchsmith dispatcher로 연결됩니다.
+Computer Use가 없는 경우 Codex의 notifier는 Watchsmith dispatcher로 연결됩니다. Computer Use가 있으면 아래 재시작 호환성 설명처럼 그 안쪽에 dispatcher를 연결합니다.
 
 ```toml
 notify = ["python3", "/Users/you/.codex/bin/watchsmith_notify_dispatcher.py"]
@@ -184,7 +225,7 @@ activitysmith activity stream
 
 watchdog fallback은 Live Activity를 사용합니다.
 
-지원하지 않으면 자동으로 Push 알림으로 fallback합니다.
+지원하지 않으면 MCP stream이 이미 존재할 가능성이 없는 경우에만 Push 알림으로 fallback합니다.
 
 Codex 내부의 ActivitySmith MCP Live Activity는 이 CLI 기능과 별개이므로 계속 사용할 수 있습니다.
 
@@ -213,7 +254,7 @@ Codex
 
 복구는 `./install.sh --rollback latest --quiesced`, 제거는 `./uninstall.sh --quiesced`입니다. 최초 보관한 상태에서 기존 notifier가 필요로 하는 파일을 복원합니다. 사용자가 notifier를 바꾼 경우 해당 설정과 의존할 수 있는 실행 파일을 함께 보존합니다. [업데이트·복구 상세 안내](docs/UPGRADING.md)를 참고하세요.
 
-관리하는 완료 notifier는 로컬 전송 기록을 공유해 동일 이벤트의 중복 전송을 조율합니다. **상세 MCP 알림과 일반 hook이 같은 정확한 thread·turn ID를 확보한 경우에만** 상세 성공 기록으로 일반 알림을 생략할 수 있습니다. 현재 확인한 클라이언트에서 완료 전 turn ID 자동 연결은 인증되지 않았으며, ID가 없으면 기존 일반 알림을 유지합니다. watchdog 진행 알림 동작은 그대로이고, Computer Use 완료 callback 호환성은 아직 미해결입니다.
+관리하는 완료 notifier는 로컬 전송 기록을 공유해 동일 이벤트의 중복 전송을 조율합니다. **상세 MCP 알림과 일반 hook이 같은 정확한 thread·turn ID를 확보한 경우에만** 상세 성공 기록으로 일반 알림을 생략할 수 있습니다. 현재 확인한 클라이언트에서 완료 전 turn ID 자동 연결은 인증되지 않았으며, ID가 없으면 기존 일반 알림을 유지합니다. wrapper 내부 진행 알림은 관리 지침을 통해 같은 stream 키를 공유합니다. wrapper 밖 Desktop 작업은 독립적이며, Computer Use 완료 callback 호환성은 아직 미해결입니다.
 
 ## 상세 작업 결과 공유 (선택 사항)
 
@@ -221,7 +262,7 @@ Codex
 
 `watchsmith_result.py`는 로컬 결과를 검증하고 기존 MCP 도구에 넘길 인수만 출력합니다. 직접 전송하거나 파일을 업로드하지 않습니다. `--share-details`는 검토한 요약을 포함하고, `--include-result-link`는 이미 존재하며 공유가 허용된 HTTPS 결과 페이지를 선택적으로 연결합니다. 별도 서버는 필요하지 않습니다. [결과 형식 및 사용 절차](docs/RESULTS.md)와 [예시](config/result-example.json)를 참고하세요.
 
-MCP 기록 조회로 metadata 저장을 확인했으며, 사용자가 iOS 앱에서 상세 항목·줄바꿈 표시를 확인했습니다. 결과 링크 접근은 아직 검증하지 않았습니다. 기존 완료 hook에서 별도 Push가 올 수 있으며, 통합 간 중복 제거는 아직 제공하지 않습니다.
+MCP 기록 조회로 metadata 저장을 확인했으며, 사용자가 iOS 앱에서 상세 항목·줄바꿈 표시를 확인했습니다. 결과 링크 접근은 아직 검증하지 않았습니다. 기존 완료 hook에서 별도 Push가 올 수 있으며, 상세·일반 알림의 조율에는 위에서 설명한 동일한 thread·turn 식별자가 필요합니다.
 
 ## 보안
 
@@ -361,3 +402,15 @@ python3 -m unittest discover -s tests -v
 ```
 
 테스트는 설치·제거, 기록용 notifier로의 정확한 인수 전달, 모의 CLI를 이용한 일반 완료 명령 구성을 검증합니다. 실제 Computer Use 클라이언트, Codex 이벤트 발생, 모바일 수신을 검증한 것은 아닙니다.
+
+## 진행 알림 경로 조율
+
+`codex-watch`가 감싼 단일 실행에서는 관리 지침과 watchdog이 로컬 실행 상태 및 Live Activity 키를 공유합니다. MCP 성공 등록 후에는 fallback을 억제하고, watchdog이 먼저 시작했다면 MCP가 같은 키로 이어받습니다. 완료 hook의 turn별 조율은 별도로 유지합니다. Desktop 등 wrapper 밖의 작업은 자동 연결되지 않습니다. 적용하려면 실행 중인 작업을 종료한 뒤 `./install.sh --upgrade --quiesced`를 실행하고 Codex를 다시 시작하세요. [상세 동작과 한계](docs/PROGRESS.md)를 참고하세요.
+
+## Computer Use 재시작 호환성
+
+Computer Use를 사용하는 경우 설치기는 `Codex → Computer Use → Watchsmith dispatcher` 순서로 연결합니다. Watchsmith는 안쪽에 있던 기존 notifier와 자체 알림을 실행하므로 재시작 후 Computer Use가 이중으로 들어가지 않습니다.
+
+이전 설치에서 재시작으로 바깥 연결이 추가된 경우, 설치 기록과 저장된 원본이 일치하는지 확인하고 중복된 이전 Computer Use 구간만 정리합니다. 식별할 수 없는 구성은 임의로 변경하지 않습니다. 정리 후 재설치는 변경 없이 끝나며, 제거 시 기존 notifier와 Computer Use를 보존합니다. 신규 사용자가 추가로 설정할 부분은 없습니다.
+
+이전에 관찰한 외부 callback 시간 초과는 watchdog의 고장 근거가 아닙니다. 설치 점검은 연결 구성을 검증하며 외부 callback 자체의 정상 실행을 보증하지는 않습니다.

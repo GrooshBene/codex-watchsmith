@@ -19,7 +19,7 @@ Finish active Codex/watchdog work and close the affected Codex clients before ap
 ./install.sh --upgrade --quiesced
 ```
 
-The installer prints a transaction ID and stores a private recovery journal under `${CODEX_HOME:-$HOME/.codex}/watchsmith/transactions/`. It snapshots managed file contents, permissions, config, policy, and saved argv. Known owned helpers are updated; the existing Computer Use argv is retained exactly. Only the managed policy block is replaced, leaving outside instructions intact.
+The installer prints a transaction ID and stores a private recovery journal under `${CODEX_HOME:-$HOME/.codex}/watchsmith/transactions/`. It snapshots managed file contents, permissions, config, policy, and saved argv. Known owned helpers are updated; the existing Computer Use argv is retained exactly. The current managed block or the recognized legacy `activitysmith autonomous workflow` block is replaced, leaving outside instructions intact. Mixed or malformed marker sets stop the migration.
 
 Keychain credentials, MCP authorization, and detailed-sharing preferences are not reset. You do not need to register the API key again. For a fresh installation, complete the README's CLI, PATH, Keychain, MCP, and device setup steps.
 
@@ -87,4 +87,22 @@ No automatic cross-service history reconciliation or remote idempotency is imple
 
 ## Watchdog scope
 
-`codex-watch` continues to measure wrapped process lifetime. It does not observe whether MCP progress is already displayed. Suppressing watchdog progress based on an active MCP stream is separate future work, and requires reliable process/turn/stream correlation. This release only coordinates completion notifications.
+`codex-watch` measures wrapped process lifetime and shares a private run context with the managed MCP policy. Registered MCP success suppresses fallback, and both paths use one stream key. It observes local acknowledgment, not device display. This applies to new wrapped one-shot processes, not arbitrary Desktop tasks or per-turn interactive sessions.
+
+The upgrade also installs `watchsmith_progress.py` and refreshes the wrapper progress policy. Launch a new wrapped command after restarting; already-running processes do not acquire the context. See [PROGRESS.md](PROGRESS.md).
+
+## Computer Use restart compatibility
+
+When the recognized Computer Use callback is configured, the installer keeps it
+outside Watchsmith: `Codex → Computer Use → Watchsmith dispatcher`. The dispatcher
+forwards to the original inner notifier and sends its own generic notification.
+This prevents a restart from adding another Computer Use layer. The supported
+shape is `SkyComputerUseClient turn-ended [--previous-notify JSON]`.
+
+For an existing managed installation that Desktop has rewrapped, the installer
+reconciles the saved matching envelope without changing the outer config. A
+manifest and unchanged saved notifier are required. Unknown or mismatched chains
+stop for review. Reinstallation is a no-op once reconciled; removal restores the
+original notifier while retaining Computer Use. No extra first-install action is
+required. External callback execution is separate from watchdog timing; the earlier
+callback timeout is not evidence of a watchdog failure.

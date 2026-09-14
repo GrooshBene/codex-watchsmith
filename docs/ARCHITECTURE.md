@@ -37,6 +37,22 @@ Reinstallation backs up and atomically updates only the marked global agent-poli
 
 ## Completion coordination and migration
 
-watchsmith_delivery.py keeps terminal-event claims in a private local SQLite database scoped to the installed root. The generic notifier waits for pending detailed claims, records CLI service responses, and limits a correlated event to one generic attempt. Exact pre-final turn identity must be supplied by the runtime for MCP-to-hook coordination; it is not inferred from thread ID alone. A remote send and local acknowledgment are not atomic, so crash-after-send duplication remains possible. Watchdog progress is unchanged.
+watchsmith_delivery.py keeps terminal-event claims in a private local SQLite database scoped to the installed root. The generic notifier waits for pending detailed claims, records CLI service responses, and limits a correlated event to one generic attempt. Exact pre-final turn identity must be supplied by the runtime for MCP-to-hook coordination; it is not inferred from thread ID alone. A remote send and local acknowledgment are not atomic, so crash-after-send duplication remains possible. Wrapped-process progress now uses a separate private run context and shared stream key; see [PROGRESS.md](PROGRESS.md). Run identity is never substituted for terminal thread/turn identity.
 
 watchsmith_install.py validates known runtime hashes, saves original dependencies and per-transaction file images, rejects modified owned files, and restores dependencies before config on removal/rollback. Quiescence is an operator precondition; a lock serializes participating installers. See [UPGRADING.md](UPGRADING.md) for limits and executable commands.
+
+## Computer Use restart compatibility
+
+When the recognized Computer Use callback is configured, the installer keeps it
+outside Watchsmith: `Codex → Computer Use → Watchsmith dispatcher`. The dispatcher
+forwards to the original inner notifier and sends its own generic notification.
+This prevents a restart from adding another Computer Use layer. The supported
+shape is `SkyComputerUseClient turn-ended [--previous-notify JSON]`.
+
+For an existing managed installation that Desktop has rewrapped, the installer
+reconciles the saved matching envelope without changing the outer config. A
+manifest and unchanged saved notifier are required. Unknown or mismatched chains
+stop for review. Reinstallation is a no-op once reconciled; removal restores the
+original notifier while retaining Computer Use. No extra first-install action is
+required. External callback execution is separate from watchdog timing; the earlier
+callback timeout is not evidence of a watchdog failure.

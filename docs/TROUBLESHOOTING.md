@@ -1,7 +1,7 @@
 # Troubleshooting
 
 ## `unknown command 'stream'`
-Your ActivitySmith CLI lacks the Live Activity CLI subcommand. Watchsmith automatically falls back to Push. MCP Live Activity remains independent.
+Your ActivitySmith CLI lacks the Live Activity CLI subcommand. The watchdog uses one generic Push when no MCP stream may already exist; otherwise it avoids an extra Push. MCP can still provide Live Activity updates, but the agent must end them through MCP.
 
 ## Existing notifier
 ```bash
@@ -42,3 +42,23 @@ If reinstall reports ambiguous policy markers, inspect the BEGIN/END Watchsmith 
 Use `./install.sh --check` and [UPGRADING.md](UPGRADING.md). Unknown runtime hashes require review; do not add a hash merely to bypass the check. An interrupted transaction requires `--rollback ID --quiesced`. Stop affected clients before setting --quiesced.
 
 Deduplication needs exact thread/turn IDs and cooperating senders sharing the same installed root. Check whether the detail sender recorded its successful claim before the hook ran. If no trusted turn ID is available, keep generic fallback rather than guessing. An unknown delivery outcome may have reached the remote service; do not blindly replay it. Existing external notifiers can still send independently.
+
+## MCP and watchdog both start progress
+
+For wrapped one-shot commands, install the updated helper and managed policy, then restart. The agent must inherit `WATCHSMITH_PROGRESS_CONTEXT` and record the MCP outcome through `WATCHSMITH_PROGRESS_HELPER`; without that registration the watchdog cannot observe the MCP call. Do not copy a context from another task or substitute a thread ID. Old CLI versions may need the agent to end the shared activity through MCP. See [PROGRESS.md](PROGRESS.md) for uncertain outcomes and cleanup limits.
+
+## Computer Use restart compatibility
+
+When the recognized Computer Use callback is configured, the installer keeps it
+outside Watchsmith: `Codex → Computer Use → Watchsmith dispatcher`. The dispatcher
+forwards to the original inner notifier and sends its own generic notification.
+This prevents a restart from adding another Computer Use layer. The supported
+shape is `SkyComputerUseClient turn-ended [--previous-notify JSON]`.
+
+For an existing managed installation that Desktop has rewrapped, the installer
+reconciles the saved matching envelope without changing the outer config. A
+manifest and unchanged saved notifier are required. Unknown or mismatched chains
+stop for review. Reinstallation is a no-op once reconciled; removal restores the
+original notifier while retaining Computer Use. No extra first-install action is
+required. External callback execution is separate from watchdog timing; the earlier
+callback timeout is not evidence of a watchdog failure.

@@ -93,3 +93,26 @@ class PolicyTests(unittest.TestCase):
                 self.assertEqual((home / 'config.toml').read_text(), 'notify = ["original"]\n')
                 self.assertEqual((home / 'AGENTS.md').read_text(), bad)
                 self.assertFalse((home / 'watchsmith').exists())
+
+
+class LegacyPolicyTests(unittest.TestCase):
+    def test_legacy_replaced_and_personal_content_preserved(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            original = 'Personal before\n<!-- BEGIN activitysmith autonomous workflow -->\nold policy\n<!-- END activitysmith autonomous workflow -->\nMusic instructions\n'
+            (home / 'AGENTS.md').write_text(original)
+            before, after = CONFIG.policy_text(home)
+            self.assertEqual(before, original)
+            self.assertTrue(after.startswith('Personal before\n'))
+            self.assertTrue(after.endswith('\nMusic instructions\n'))
+            self.assertNotIn('activitysmith autonomous workflow', after)
+            self.assertEqual(after.count(CONFIG.POLICY_BEGIN), 1)
+
+    def test_mixed_or_malformed_legacy_policy_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            for text in ('<!-- BEGIN activitysmith autonomous workflow -->',
+                         '<!-- BEGIN activitysmith autonomous workflow --><!-- END activitysmith autonomous workflow -->' + CONFIG.POLICY_BEGIN + CONFIG.POLICY_END):
+                (home / 'AGENTS.md').write_text(text)
+                with self.assertRaises(ValueError):
+                    CONFIG.policy_text(home)

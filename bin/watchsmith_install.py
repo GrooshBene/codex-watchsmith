@@ -18,7 +18,7 @@ import tomllib
 
 ROOT = Path(__file__).resolve().parent.parent
 NAMES = ('activitysmith_notify.py', 'watchsmith_notify_dispatcher.py', 'codex-watch',
-         'activitysmith-keychain-setup', 'activitysmith-test', 'watchsmith_result.py', 'watchsmith_delivery.py')
+         'activitysmith-keychain-setup', 'activitysmith-test', 'watchsmith_result.py', 'watchsmith_delivery.py', 'watchsmith_progress.py')
 TRACKED = ['bin/' + n for n in NAMES] + ['config.toml', 'AGENTS.md', 'watchsmith/previous_notify.json', 'watchsmith/installation.json']
 
 
@@ -101,6 +101,26 @@ def validate_chain(argv, dispatcher, depth=0):
     return computer
 
 
+def computer_wrapper(argv):
+    """Recognize only the observed Computer Use envelope; never arbitrary argv."""
+    if not isinstance(argv, list) or len(argv) not in (2, 4):
+        return None
+    if Path(argv[0]).name != 'SkyComputerUseClient' or argv[1] != 'turn-ended':
+        return None
+    if len(argv) == 2:
+        return argv[:2], None
+    if argv[2] != '--previous-notify':
+        return None
+    nested = json.loads(argv[3])
+    if nested is not None:
+        argv_value(nested)
+    return argv[:2], nested
+
+
+def wrap_computer(prefix, nested):
+    return prefix + ['--previous-notify', json.dumps(nested)] if nested else prefix
+
+
 def prepare(home):
     before = {p: image(home / p) for p in TRACKED}
     text = content(before['config.toml']).decode()
@@ -109,17 +129,51 @@ def prepare(home):
     dispatcher_path = str(home / 'bin/watchsmith_notify_dispatcher.py')
     dispatcher = ['python3', dispatcher_path]
     saved = read_json(before['watchsmith/previous_notify.json'])
-    if is_dispatcher(old, dispatcher_path):
+    manifest = read_json(before['watchsmith/installation.json'])
+    if manifest is not None and manifest.get('schema_version') != 1:
+        raise ValueError('unsupported installation manifest')
+    envelope = computer_wrapper(old)
+    managed = is_dispatcher(old, dispatcher_path) or (
+        envelope is not None and is_dispatcher(envelope[1], dispatcher_path))
+    if managed:
         if before['watchsmith/previous_notify.json'] is None:
             raise ValueError('dispatcher configured but saved notifier is missing')
+        if envelope and not manifest:
+            raise ValueError('wrapped dispatcher requires installation manifest')
+        if manifest and saved != manifest.get('installed_previous_notify', manifest['uninstall_notify']):
+            raise ValueError('saved notifier was modified after installation')
         previous = saved
     else:
         previous = old
     computer = validate_chain(previous, dispatcher_path)
+    target = dispatcher
+    original = manifest['uninstall_notify'] if manifest else old
+    # Keep Computer Use outside our dispatcher so restarting cannot add it again.
+    if envelope:
+        prefix = envelope[0]
+        original_envelope = computer_wrapper(original)
+        if managed and original_envelope and original_envelope[0] != prefix:
+            raise ValueError('Computer Use executable changed; review original chain')
+        if managed:
+            saved_envelope = computer_wrapper(previous)
+            if saved_envelope:
+                if saved_envelope[0] != prefix:
+                    raise ValueError('Computer Use executable changed; review saved chain')
+                previous = saved_envelope[1]
+            if not computer_wrapper(original):
+                original = wrap_computer(prefix, original)
+        else:
+            previous = envelope[1]
+        target = old if managed else wrap_computer(prefix, dispatcher)
+        computer = True
+    elif managed:
+        saved_envelope = computer_wrapper(previous)
+        if saved_envelope:
+            target = wrap_computer(saved_envelope[0], dispatcher)
+            previous = saved_envelope[1]
+            computer = True
+    validate_chain(previous, dispatcher_path)
     old_policy, new_policy = policy_text(home)
-    manifest = read_json(before['watchsmith/installation.json'])
-    if manifest is not None and manifest.get('schema_version') != 1:
-        raise ValueError('unsupported installation manifest')
     known = json.loads((ROOT / 'config/known-runtime-hashes.json').read_text())
     after = dict(before)
     for name in NAMES:
@@ -132,16 +186,17 @@ def prepare(home):
         if current and digest(current) not in accepted:
             raise ValueError(f'user-modified or unrecognized runtime: {name}; no files changed')
         after[key] = source
-    cfg = replace_notify(text, dispatcher)
+    cfg = replace_notify(text, target)
     after['config.toml'] = encode(cfg.encode(), before['config.toml']['mode'] if before['config.toml'] else 0o600)
     after['AGENTS.md'] = encode(new_policy.encode(), before['AGENTS.md']['mode'] if before['AGENTS.md'] else 0o600)
     after['watchsmith/previous_notify.json'] = encode((json.dumps(previous) + '\n').encode())
     # Existing dispatcher installs have no pre-Watchsmith executable snapshot: keep
     # their working helper set on uninstall rather than deleting unknown dependencies.
-    baseline = manifest['baseline'] if manifest else {p: before[p] for p in TRACKED if p != 'watchsmith/installation.json'}
+    baseline = {p: manifest['baseline'].get(p, before[p]) if manifest else before[p]
+                for p in TRACKED if p != 'watchsmith/installation.json'}
     document = {'schema_version': 1, 'baseline': baseline,
                 'baseline_was_dispatcher': manifest['baseline_was_dispatcher'] if manifest else is_dispatcher(old, dispatcher_path),
-                'uninstall_notify': manifest['uninstall_notify'] if manifest else previous,
+                'uninstall_notify': original,
                 'installed_previous_notify': previous,
                 'installed_hashes': {'bin/' + n: digest(after['bin/' + n]) for n in NAMES}}
     after['watchsmith/installation.json'] = encode((json.dumps(document, indent=2) + '\n').encode())
@@ -169,7 +224,9 @@ def pending_transaction(home):
 
 
 def restore(home, journal_path, journal):
-    if set(journal['before']) != set(TRACKED) or set(journal['after']) != set(TRACKED) or not set(journal['changes']).issubset(TRACKED):
+    if (set(journal['before']) != set(journal['after'])
+            or not set(journal['before']).issubset(TRACKED)
+            or not set(journal['changes']).issubset(journal['before'])):
         raise ValueError('invalid transaction paths')
     # Preflight all paths before undoing anything; never overwrite unrelated edits.
     for p in journal['changes']:
@@ -226,19 +283,28 @@ def uninstall_plan(home):
     text = content(before['config.toml']).decode()
     data = tomllib.loads(text)
     dispatcher = ['python3', str(home / 'bin/watchsmith_notify_dispatcher.py')]
-    if not is_dispatcher(data.get('notify'), dispatcher[1]):
+    envelope = computer_wrapper(data.get('notify'))
+    owned = is_dispatcher(data.get('notify'), dispatcher[1]) or (
+        envelope is not None and is_dispatcher(envelope[1], dispatcher[1]))
+    original_envelope = computer_wrapper(manifest['uninstall_notify'])
+    if envelope and original_envelope and envelope[0] != original_envelope[0]:
+        return before, after
+    if not owned:
         # A changed notifier may depend on our files; preserve both until reviewed.
         return before, after
-    if is_dispatcher(data.get('notify'), dispatcher[1]):
+    if owned:
         if before['watchsmith/previous_notify.json'] is None:
             raise ValueError('saved notifier is missing; review installation manifest before removal')
         if read_json(before['watchsmith/previous_notify.json']) != manifest.get('installed_previous_notify', manifest['uninstall_notify']):
             raise ValueError('saved notifier was modified after installation; review before removal')
-        after['config.toml'] = encode(replace_notify(text, manifest['uninstall_notify']).encode(), before['config.toml']['mode'])
+        original = manifest['uninstall_notify']
+        if envelope and not computer_wrapper(original):
+            original = wrap_computer(envelope[0], original)
+        after['config.toml'] = encode(replace_notify(text, original).encode(), before['config.toml']['mode'])
     baseline = manifest['baseline']
     for name in NAMES:
         key = 'bin/' + name
-        after[key] = baseline[key]
+        after[key] = baseline.get(key, before[key])
     # Preserve baseline metadata; policy and credentials remain for manual review.
     after['watchsmith/previous_notify.json'] = baseline['watchsmith/previous_notify.json']
     after['watchsmith/installation.json'] = None
@@ -295,7 +361,7 @@ def main():
             kind = 'managed-removal'
         changes = [p for p in before if before[p] != after[p]]
         print(json.dumps({'installation_type': kind, 'changes': changes,
-                          'computer_use': 'requires real callback verification' if kind == 'computer-use-wrapper' else 'not detected',
+                          'computer_use': 'external callback; installation check verifies configuration only' if kind == 'computer-use-wrapper' else 'not detected',
                           'agent_turn_correlation': 'requires exact trusted turn ID; never inferred',
                           'credentials': 'reused, not inspected or changed'}, indent=2))
         if args.check or not changes:
