@@ -1,0 +1,9 @@
+.DS_Store
+.env
+*.log
+__pycache__/
+
+# Local Codex / Work development context
+AGENTS.md
+HANDOFF.md
+.codex/

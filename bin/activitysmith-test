@@ -1,0 +1,16 @@
+#!/bin/zsh
+set -e
+k="$(security find-generic-password -a "$USER" -s activitysmith-codex -w 2>/dev/null || true)"
+[[ -z "$k" ]] && { print -u2 'API key 없음: activitysmith-keychain-setup 실행'; exit 1; }
+export ACTIVITYSMITH_API_KEY="$k"
+activitysmith push --title 'Codex Watchsmith' --message 'Push 연결 정상'
+if activitysmith activity stream --help >/dev/null 2>&1; then
+  s="watchsmith-test-$(date +%s)"
+  activitysmith activity stream "$s" --content-state '{"title":"Codex Watchsmith","subtitle":"Live Activity test","type":"timer","countsDown":false}'
+  sleep 2
+  activitysmith activity end-stream "$s" --content-state '{"title":"Codex Watchsmith","subtitle":"완료","type":"timer","countsDown":false,"autoDismissMinutes":0}'
+else
+  print "ℹ 현재 ActivitySmith CLI에는 'activity stream' 명령이 없습니다."
+  print '  Push는 정상입니다. 외부 60초 fallback은 Push 모드로 동작합니다.'
+  print '  Codex 내부 Live Activity는 MCP set_live_activity_stream을 계속 사용할 수 있습니다.'
+fi

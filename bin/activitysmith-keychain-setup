@@ -1,0 +1,9 @@
+#!/bin/zsh
+set -e
+SERVICE='activitysmith-codex'
+print 'ActivitySmith API Key를 입력하세요 (표시되지 않음).'
+read -s 'k?API Key: '; print
+[[ -z "$k" ]] && exit 1
+security add-generic-password -a "$USER" -s "$SERVICE" -w "$k" -U >/dev/null
+unset k
+print '✓ macOS Keychain에 저장했습니다.'

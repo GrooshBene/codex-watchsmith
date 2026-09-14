@@ -1,0 +1,33 @@
+#!/bin/zsh
+set -u
+unsetopt BG_NICE
+THRESHOLD="${CODEX_WATCH_THRESHOLD_SECONDS:-60}"
+SERVICE='activitysmith-codex'
+[[ $# -eq 0 ]] && { print -u2 'usage: codex-watch <command> [args...]'; exit 2; }
+command -v activitysmith >/dev/null || { print -u2 '[watchsmith] activitysmith CLI not found'; exit 127; }
+if [[ -z "${ACTIVITYSMITH_API_KEY:-}" ]]; then
+  k="$(security find-generic-password -a "$USER" -s "$SERVICE" -w 2>/dev/null || true)"
+  [[ -n "$k" ]] && export ACTIVITYSMITH_API_KEY="$k"
+fi
+task="watchsmith-$(date +%s)-$$"; project="${PWD:t}"; marker="/tmp/${task}.live"
+supports_stream(){ activitysmith activity stream --help >/dev/null 2>&1; }
+start_fallback(){
+  if supports_stream; then
+    activitysmith activity stream "$task" --content-state "{\"title\":\"Codex 작업 중\",\"subtitle\":\"${project}\",\"type\":\"timer\",\"countsDown\":false}" >/dev/null 2>&1 && touch "$marker"
+  else
+    activitysmith push --title 'Codex 작업 진행 중' --message "60초 이상 작업이 진행 중입니다: ${project}" >/dev/null 2>&1 || true
+  fi
+}
+cleanup(){
+  if [[ -f "$marker" ]]; then
+    activitysmith activity end-stream "$task" --content-state "{\"title\":\"Codex 작업 완료\",\"subtitle\":\"${project}\",\"type\":\"timer\",\"countsDown\":false,\"autoDismissMinutes\":0}" >/dev/null 2>&1 || true
+    rm -f "$marker"
+  fi
+}
+trap cleanup EXIT INT TERM
+"$@" & child=$!
+( sleep "$THRESHOLD"; kill -0 "$child" 2>/dev/null && start_fallback ) & timer=$!
+wait "$child"; exit_code=$?
+kill "$timer" >/dev/null 2>&1 || true
+wait "$timer" 2>/dev/null || true
+exit "$exit_code"
