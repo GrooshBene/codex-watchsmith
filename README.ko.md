@@ -38,7 +38,7 @@ Watchsmith는 이미 사용하는 Codex에 알림 기능을 연결하는 애드�
 - **정상 작동하는 Codex:** 로그인하고 간단한 작업이 완료되는지 먼저 확인하세요. `codex-watch codex exec`를 사용하려면 Codex CLI도 설치해야 합니다. Desktop 앱만으로 해당 명령이 제공되는 것은 아닙니다.
 - **Python 3.11 이상:** 터미널에서 `python3`를 실행할 수 있어야 합니다. Python이나 TOML 파서를 찾지 못하면 설치가 중단됩니다.
 - **Node.js와 npm:** 아래 명령으로 ActivitySmith CLI를 설치하고 실행하는 데 필요합니다. CLI의 실행 환경 요구사항은 [ActivitySmith CLI 공식 안내](https://activitysmith.com/sdks/cli)를 참고하세요.
-- **저장소 파일:** 빠른 설치 예시는 Git을 사용합니다. `<YOUR_GITHUB>`를 실제 저장소 소유자로 바꾸세요. Git이 없다면 저장소 ZIP을 다운로드·압축 해제한 뒤 해당 폴더에서 터미널을 열고 `./install.sh`부터 진행할 수 있습니다.
+- **저장소 파일:** 빠른 설치 예시는 Git을 사용합니다. Git이 없다면 저장소 ZIP을 다운로드·압축 해제한 뒤 해당 폴더에서 터미널을 열고 `./install.sh`부터 진행할 수 있습니다.
 
 터미널에서 준비 상태를 확인하세요.
 
@@ -80,7 +80,7 @@ MCP 인증과 CLI용 API Key는 별개입니다. MCP는 에이전트가 직접 �
 ## 빠른 설치
 
 ```bash
-git clone https://github.com/<YOUR_GITHUB>/codex-watchsmith.git
+git clone https://github.com/GrooshBene/codex-watchsmith.git
 cd codex-watchsmith
 ./install.sh
 

@@ -22,7 +22,7 @@ Watchsmith adds notification integration to an existing Codex setup. The install
 - **A working Codex installation:** sign in and confirm you can complete a small task. Install Codex CLI as well if you want to use `codex-watch codex exec`; Desktop alone does not provide that command.
 - **Python 3.11 or newer:** `python3` must be available in your command path. The installer stops if Python or its TOML parser is unavailable.
 - **Node.js and npm:** needed to install and run ActivitySmith CLI using the commands below. See the [ActivitySmith CLI guide](https://activitysmith.com/sdks/cli) for its runtime requirements.
-- **The repository files:** the Quick start uses Git. Replace `<YOUR_GITHUB>` with the actual repository owner. If Git is unavailable, download and extract the repository ZIP, then open a terminal in that folder and start at `./install.sh`.
+- **The repository files:** the Quick start uses Git. If Git is unavailable, download and extract the repository ZIP, then open a terminal in that folder and start at `./install.sh`.
 
 Check the command-line prerequisites:
 
@@ -64,7 +64,7 @@ The installer's completion message means local files and configuration have been
 ## Quick start
 
 ```bash
-git clone https://github.com/<YOUR_GITHUB>/codex-watchsmith.git
+git clone https://github.com/GrooshBene/codex-watchsmith.git
 cd codex-watchsmith
 ./install.sh
 
