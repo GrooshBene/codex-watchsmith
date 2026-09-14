@@ -11,6 +11,7 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'bin'))
 
 
 def module(name):
@@ -30,7 +31,7 @@ class InstallationTests(unittest.TestCase):
         self.env = dict(os.environ, CODEX_HOME=str(self.home))
 
     def run_script(self, name, success=True):
-        result = subprocess.run(['zsh', str(ROOT / name)], env=self.env, capture_output=True, text=True)
+        result = subprocess.run(['zsh', str(ROOT / name), '--quiesced'], env=self.env, capture_output=True, text=True)
         self.assertEqual(result.returncode == 0, success, result.stderr)
 
     def test_multiline_notify_roundtrip_and_dispatch(self):
@@ -43,20 +44,30 @@ class InstallationTests(unittest.TestCase):
         self.cfg.write_text(original)
         self.run_script('install.sh')
         installed = self.cfg.read_text()
+        self.assertTrue((self.home / 'bin' / 'watchsmith_result.py').exists())
         self.assertTrue(installed.endswith(tail))
         self.assertTrue(installed.startswith('# keep comment\n'))
         previous = self.home / 'watchsmith' / 'previous_notify.json'
         self.assertEqual(json.loads(previous.read_text()), old)
-        backups = list((self.home / 'watchsmith').glob('config.toml.backup.*'))
-        self.assertEqual(backups[0].read_text(), original)
+        backups = list((self.home / 'watchsmith/transactions').glob('*/journal.json'))
+        import base64
+        saved_config = json.loads(backups[0].read_text())['before']['config.toml']['data']
+        self.assertEqual(base64.b64decode(saved_config).decode(), original)
         self.run_script('install.sh')
         self.assertEqual(self.cfg.read_text(), installed)
         self.assertEqual(json.loads(previous.read_text()), old)
-        self.assertEqual(len(list((self.home / 'watchsmith').glob('config.toml.backup.*'))), 1)
+        self.assertEqual(len(list((self.home / 'watchsmith/transactions').glob('*/journal.json'))), 1)
         # Exercise the installed dispatcher with CODEX_HOME absent, as in a GUI launch.
-        (self.home / 'bin' / 'activitysmith_notify.py').write_text('pass\n')
+        shim = self.home / 'test tools'
+        shim.mkdir()
+        for name in ('activitysmith', 'security'):
+            tool = shim / name
+            tool.write_text('#!/bin/sh\nexit 1\n')
+            tool.chmod(0o755)
         env = dict(os.environ)
         env.pop('CODEX_HOME', None)
+        env.pop('ACTIVITYSMITH_API_KEY', None)
+        env['PATH'] = str(shim) + os.pathsep + env['PATH']
         payload = '{ "type": "agent-turn-complete", "text": "a b\\n한글" }'
         subprocess.run(tomllib.loads(installed)['notify'] + [payload], env=env, check=True)
         deadline = time.monotonic() + 5
@@ -65,6 +76,7 @@ class InstallationTests(unittest.TestCase):
         self.assertEqual(json.loads(output.read_text()), old[3:] + [payload])
         self.run_script('uninstall.sh')
         self.assertEqual(tomllib.loads(self.cfg.read_text())['notify'], old)
+        self.assertFalse((self.home / 'bin' / 'watchsmith_result.py').exists())
         self.assertTrue(self.cfg.read_text().endswith(tail))
         self.run_script('uninstall.sh')
 
@@ -115,7 +127,7 @@ class NotificationTests(unittest.TestCase):
     def test_completion_is_generic(self):
         notifier = module('activitysmith_notify')
         payload = json.dumps({'type': 'agent-turn-complete', 'prompt': 'PRIVATE', 'last-assistant-message': 'SECRET'})
-        with patch.object(sys, 'argv', ['notify', payload]), patch.object(notifier, 'get_key', return_value='test-key'), patch.object(notifier.shutil, 'which', return_value='/fake/activitysmith'), patch.object(notifier.subprocess, 'Popen') as launch:
+        with patch.object(sys, 'argv', ['notify', payload]), patch.object(notifier, 'get_key', return_value='test-key'), patch.object(notifier.shutil, 'which', return_value='/fake/activitysmith'), patch.object(notifier.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, 'Success: true')) as launch:
             self.assertEqual(notifier.main(), 0)
             args = launch.call_args.args[0]
             self.assertEqual(args, ['/fake/activitysmith', 'push', '--title', 'Codex 작업 완료', '--message', '요청한 에이전트 작업이 완료되었습니다.'])
@@ -125,7 +137,7 @@ class NotificationTests(unittest.TestCase):
     def test_ignored_events(self):
         notifier = module('activitysmith_notify')
         for payload in ['bad json', 'null', '[]', '123', '{}', '{"type":"other"}']:
-            with patch.object(sys, 'argv', ['notify', payload]), patch.object(notifier.subprocess, 'Popen') as launch:
+            with patch.object(sys, 'argv', ['notify', payload]), patch.object(notifier.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, 'Success: true')) as launch:
                 self.assertEqual(notifier.main(), 0)
                 launch.assert_not_called()
 

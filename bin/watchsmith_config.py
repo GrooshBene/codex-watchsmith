@@ -82,9 +82,46 @@ def configure(mode, home):
     atomic_write(cfg, updated)
 
 
+POLICY_BEGIN = '<!-- BEGIN codex-watchsmith activitysmith workflow -->'
+POLICY_END = '<!-- END codex-watchsmith activitysmith workflow -->'
+
+
+def policy_text(home):
+    path = home / 'AGENTS.md'
+    old = path.read_text() if path.exists() else ''
+    template = (Path(__file__).resolve().parent.parent / 'config/activitysmith-agents.md').read_text().rstrip()
+    if not old.count(POLICY_BEGIN) and not old.count(POLICY_END):
+        return old, old + ('\n\n' if old else '') + template + '\n'
+    if old.count(POLICY_BEGIN) != 1 or old.count(POLICY_END) != 1:
+        raise ValueError('ambiguous Watchsmith policy markers; review AGENTS.md before reinstalling')
+    start, end = old.index(POLICY_BEGIN), old.index(POLICY_END)
+    if end < start:
+        raise ValueError('invalid Watchsmith policy marker order')
+    return old, old[:start] + template + old[end + len(POLICY_END):]
+
+
+def install_policy(home):
+    old, updated = policy_text(home)
+    if old == updated:
+        return
+    state = home / 'watchsmith'
+    state.mkdir(parents=True, exist_ok=True)
+    atomic_write(state / ('AGENTS.md.backup.' + uuid.uuid4().hex), old)
+    atomic_write(home / 'AGENTS.md', updated)
+
+
 if __name__ == '__main__':
     try:
-        configure(sys.argv[1], Path(sys.argv[2]).expanduser().resolve())
+        mode, home = sys.argv[1], Path(sys.argv[2]).expanduser().resolve()
+        if mode == 'policy':
+            install_policy(home)
+        elif mode == 'install':
+            policy_text(home)  # Reject malformed policy before mutating notify.
+            configure(mode, home)
+        elif mode == 'uninstall':
+            configure(mode, home)
+        else:
+            raise ValueError('unknown configuration operation')
     except (ValueError, OSError) as exc:
         print(f'[watchsmith] configuration unchanged: {exc}', file=sys.stderr)
         raise SystemExit(1)

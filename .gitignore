@@ -21,8 +21,9 @@ HANDOFF.md
 .codex/
 .agents/
 
-# Local verification reports and commit-message drafts
+# Local verification reports, implementation plans, and commit-message drafts
 /docs/VERIFICATION.md
+/docs/MIGRATION_PLAN.md
 /COMMIT_MESSAGE.txt
 /COMMIT_MESSAGE.md
 /docs/COMMIT_MESSAGE.md

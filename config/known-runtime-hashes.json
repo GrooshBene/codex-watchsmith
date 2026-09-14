@@ -1,0 +1,25 @@
+{
+  "activitysmith_notify.py": [
+    "cc1266a845ebfd8c64b55ac5bb5b7199f641b9f439e3a737caf2bbf7de3965d1",
+    "dcd835ae8f1e64f7e367bc1f95946ec591ee0743e6c2755f8949e31955e06f09",
+    "f81c5e642d023d00aae01a34ddc9a70b3d6ec2d9bc245085883c8cdb8c8c5b44"
+  ],
+  "watchsmith_notify_dispatcher.py": [
+    "841f7cbef837d19f39f841244c67297fc1cb982898fd96801d51c4ef0af7b0a0",
+    "f672b683f38ad41aa40c6e3552ded97fa49cb2dcfdbe3ab2792ee9dd16905982"
+  ],
+  "codex-watch": [
+    "c0e82d0fd6da3a5d646321dc4b85927f08b9b5e85f4dac7b8e54fe49c437a9b7",
+    "f9a2dfdd03ceff1348ececba6851d9bbe50cdb6c2d309a338a70762e6d239ba5"
+  ],
+  "activitysmith-keychain-setup": [
+    "2efe75a7b89b561ca6e40b3331bcef1e5a27ab74058c6d0e55ff24ed097af8cb",
+    "afaf16957a9770f9370901c3eedc0dff0e7e30982e0afa737b2abf432ecfc8cb"
+  ],
+  "activitysmith-test": [
+    "9517a7a4dccd7fc8d4e99de2dcbb24400906a018c670b810f98b5ba9872a9d29",
+    "f1f9c4b517f872031580de5ddf8a2ffa0f75dbd59835632ed8ce8a60e3758492"
+  ],
+  "watchsmith_result.py": [],
+  "watchsmith_delivery.py": []
+}

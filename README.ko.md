@@ -106,13 +106,17 @@ ActivitySmith MCP는 별도로 Codex에 연결되어 있어야 합니다. MCP는
 ├── config.toml
 ├── bin/
 │   ├── codex-watch
+│   ├── watchsmith_result.py
+│   ├── watchsmith_delivery.py
 │   ├── activitysmith_notify.py
 │   ├── watchsmith_notify_dispatcher.py
 │   ├── activitysmith-keychain-setup
 │   └── activitysmith-test
 └── watchsmith/
     ├── previous_notify.json
-    └── config.toml.backup.*
+    ├── installation.json
+    ├── delivery.sqlite3
+    └── transactions/
 ```
 
 기존 `config.toml`에 top-level `notify`가 존재하면 installer가 argv를 `previous_notify.json`에 보존합니다.
@@ -138,7 +142,7 @@ Codex agent-turn-complete
 
 ## Codex 공통 지침
 
-installer는 [`config/activitysmith-agents.md`](config/activitysmith-agents.md)의 내용을 `~/.codex/AGENTS.md`에 한 번만 추가합니다.
+installer는 [`config/activitysmith-agents.md`](config/activitysmith-agents.md)의 표시된 구간을 `~/.codex/AGENTS.md`에 추가하거나 갱신합니다. 이전 파일을 백업하고 구간 밖의 지침은 유지합니다.
 
 기본 판단 기준은 다음과 같습니다.
 
@@ -149,7 +153,7 @@ installer는 [`config/activitysmith-agents.md`](config/activitysmith-agents.md)�
 - 완료, 실패, blocker, 사용자 입력 필요 시 Push
 - prompt 전문, credential, 고객 데이터, 소스코드 전문, 회사 기밀은 ActivitySmith로 보내지 않음
 
-설치 후 정책을 바꾸고 싶다면 다음 파일을 수정하세요.
+개인 설정은 다음 파일의 표시된 구간 밖에 작성하세요. 재설치하면 관리 구간 내부는 새 정책으로 교체됩니다.
 
 ```text
 ~/.codex/AGENTS.md
@@ -202,6 +206,22 @@ Codex
 ```
 
 따라서 기존 Computer Use 알림 동작을 유지하면서 ActivitySmith 알림을 추가할 수 있습니다.
+
+## 기존 설치 업데이트 및 알림 조율
+
+`./install.sh --check`로 변경 없이 기존 설치를 점검하세요. 진행 중인 Codex/watchdog 작업을 마치고 관련 앱을 닫은 뒤 `./install.sh --upgrade --quiesced`를 실행합니다. 기존 `CODEX_HOME`, Keychain 키, MCP 인증을 재사용합니다. 설치기는 비공개 복구 기록을 남기며, 알 수 없거나 수정된 관리 파일은 덮어쓰지 않습니다. 설치 후 Codex를 재시작하고 실제 수신을 확인하세요.
+
+복구는 `./install.sh --rollback latest --quiesced`, 제거는 `./uninstall.sh --quiesced`입니다. 최초 보관한 상태에서 기존 notifier가 필요로 하는 파일을 복원합니다. 사용자가 notifier를 바꾼 경우 해당 설정과 의존할 수 있는 실행 파일을 함께 보존합니다. [업데이트·복구 상세 안내](docs/UPGRADING.md)를 참고하세요.
+
+관리하는 완료 notifier는 로컬 전송 기록을 공유해 동일 이벤트의 중복 전송을 조율합니다. **상세 MCP 알림과 일반 hook이 같은 정확한 thread·turn ID를 확보한 경우에만** 상세 성공 기록으로 일반 알림을 생략할 수 있습니다. 현재 확인한 클라이언트에서 완료 전 turn ID 자동 연결은 인증되지 않았으며, ID가 없으면 기존 일반 알림을 유지합니다. watchdog 진행 알림 동작은 그대로이고, Computer Use 완료 callback 호환성은 아직 미해결입니다.
+
+## 상세 작업 결과 공유 (선택 사항)
+
+사용자가 동의하면 에이전트는 결과·수행 내용·검증 근거·남은 문제·다음 단계로 정리한 요약을 ActivitySmith MCP의 metadata로 보낼 수 있습니다. metadata도 ActivitySmith 서버에 저장되므로 원본 대화·소스코드·비밀 정보를 자동 복사하지 않습니다. 기본값은 일반 상태 알림입니다.
+
+`watchsmith_result.py`는 로컬 결과를 검증하고 기존 MCP 도구에 넘길 인수만 출력합니다. 직접 전송하거나 파일을 업로드하지 않습니다. `--share-details`는 검토한 요약을 포함하고, `--include-result-link`는 이미 존재하며 공유가 허용된 HTTPS 결과 페이지를 선택적으로 연결합니다. 별도 서버는 필요하지 않습니다. [결과 형식 및 사용 절차](docs/RESULTS.md)와 [예시](config/result-example.json)를 참고하세요.
+
+MCP 기록 조회로 metadata 저장을 확인했으며, 사용자가 iOS 앱에서 상세 항목·줄바꿈 표시를 확인했습니다. 결과 링크 접근은 아직 검증하지 않았습니다. 기존 완료 hook에서 별도 Push가 올 수 있으며, 통합 간 중복 제거는 아직 제공하지 않습니다.
 
 ## 보안
 
@@ -315,10 +335,10 @@ security find-generic-password \
 ## 삭제
 
 ```bash
-./uninstall.sh
+./uninstall.sh --quiesced
 ```
 
-가능하면 기존 notifier를 복원하고 Watchsmith 실행 파일을 제거합니다.
+설치 이력에서 기존 notifier의 의존 파일을 먼저 복원한 뒤 설정을 되돌립니다. 사용자가 notifier를 바꿨다면 의존성 보호를 위해 실행 파일도 유지합니다.
 
 `AGENTS.md`에 추가된 tagged block과 Keychain의 API Key는 사용자가 직접 검토할 수 있도록 자동 삭제하지 않습니다.
 
@@ -330,9 +350,9 @@ MIT
 
 TOML 검증을 위해 Python 3.11 이상이 필요합니다. `CODEX_HOME`을 지원하며 기본값은 `~/.codex`입니다. 설치된 dispatcher는 자신의 위치를 기준으로 상태 파일과 notifier를 찾으므로 GUI 프로세스가 `CODEX_HOME`을 전달하지 않아도 동작합니다.
 
-installer는 전체 TOML을 검증한 뒤 최상위 `notify`만 교체합니다. 여러 줄 배열과 따옴표로 감싼 키를 지원하며 중첩 설정은 유지합니다. 잘못된 TOML이나 문자열이 아닌 notify 인수가 있으면 설정을 수정하지 않고 중단합니다. 백업 이름은 중복되지 않으며 설정 파일은 원자적으로 교체합니다. 동일한 dispatcher를 재설치하면 기존 notifier 기록을 보존합니다. 기존 notifier가 없었던 경우 JSON `null`을 저장합니다. 복원 정보가 없으면 추측해서 덮어쓰지 않고 재설치·제거를 중단합니다.
+installer는 전체 TOML을 검증한 뒤 최상위 `notify`만 교체합니다. 여러 줄 배열과 따옴표로 감싼 키를 지원하며 중첩 설정은 유지합니다. 잘못된 TOML이나 문자열이 아닌 notify 인수가 있으면 설정을 수정하지 않고 중단합니다. 비공개 복구 기록에 원본을 보관하며 개별 설정 파일은 원자적으로 교체합니다. 동일한 dispatcher를 재설치하면 기존 notifier 기록을 보존합니다. 기존 notifier가 없었던 경우 JSON `null`을 저장합니다. 복원 정보가 없으면 추측해서 덮어쓰지 않고 재설치·제거를 중단합니다.
 
-제거 시 최상위 notifier가 이 설치의 dispatcher인 경우에만 이전 인수 배열을 복원합니다. 사용자가 변경한 notifier는 유지합니다. notify의 표기 형식은 정규화될 수 있으며 원문은 백업에 남습니다. 전역 정책 갱신과 설치 전체의 롤백은 아직 후속 작업입니다.
+제거 시 최상위 notifier가 이 설치의 dispatcher인 경우에만 이전 인수 배열을 복원합니다. 사용자가 변경한 notifier는 유지합니다. notify의 표기 형식은 정규화될 수 있으며 원문은 백업에 남습니다. 재설치 시 관리하는 전역 정책 구간도 갱신합니다. 복구 기록을 이용한 설치 롤백을 제공합니다. 업데이트 안내를 참고하세요.
 
 실제 Codex 설정을 변경하거나 알림을 보내지 않는 회귀 테스트:
 

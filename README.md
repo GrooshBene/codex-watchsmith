@@ -90,13 +90,17 @@ Files:
 ├── config.toml
 ├── bin/
 │   ├── codex-watch
+│   ├── watchsmith_result.py
+│   ├── watchsmith_delivery.py
 │   ├── activitysmith_notify.py
 │   ├── watchsmith_notify_dispatcher.py
 │   ├── activitysmith-keychain-setup
 │   └── activitysmith-test
 └── watchsmith/
     ├── previous_notify.json
-    └── config.toml.backup.*
+    ├── installation.json
+    ├── delivery.sqlite3
+    └── transactions/
 ```
 
 If `config.toml` already has a top-level `notify`, Watchsmith preserves its argv in `previous_notify.json`.
@@ -122,7 +126,7 @@ This allows existing Computer Use notification hooks to coexist.
 
 ## Global Codex instructions
 
-The installer appends `config/activitysmith-agents.md` once to `~/.codex/AGENTS.md`.
+The installer installs or updates the marked block from `config/activitysmith-agents.md` in `~/.codex/AGENTS.md`, backing up the prior file and preserving surrounding instructions.
 
 Default decision policy:
 
@@ -133,7 +137,7 @@ Default decision policy:
 - completion / failure / blocker / user input → Push
 - never send prompts, credentials, customer data, source code dumps, or confidential content
 
-Edit the policy in `~/.codex/AGENTS.md` after installation if desired.
+Keep personal preferences outside the marked block in `~/.codex/AGENTS.md`; reinstalling replaces that managed block.
 
 ## 60s watchdog
 
@@ -165,6 +169,22 @@ Agent/MCP     = meaningful status ("running tests", "rendering audio")
 Watchdog      = hard fallback ("this process is still running after 60s")
 notify hook   = reliable generic completion signal
 ```
+
+## Upgrade and notification coordination
+
+Run `./install.sh --check` to inspect the existing installation without changing it. Finish active Codex/watchdog tasks and close affected clients, then run `./install.sh --upgrade --quiesced`. The same `CODEX_HOME`, Keychain key, and MCP authorization are reused. The installer records a private transaction journal and stops on unknown/modified owned helpers. Restart Codex and verify actual delivery afterward.
+
+Rollback: `./install.sh --rollback latest --quiesced`. Removal: `./uninstall.sh --quiesced`. Original notifier dependencies are restored from the installation baseline; a user-changed notifier is preserved together with its potential runtime dependencies. See [upgrade and recovery details](docs/UPGRADING.md).
+
+Owned completion senders now share a local event store. Exact duplicate generic events are coordinated; an acknowledged detailed MCP result can suppress the generic result **only when both paths have the same trusted thread and turn IDs**. Automatic pre-final turn correlation is not certified for the tested clients. Missing IDs retain best-effort notifications. Watchdog progress behavior is unchanged, and Computer Use callback compatibility remains unresolved.
+
+## Optional detailed task results
+
+With your authorization, the agent can send a reviewed result summary through ActivitySmith MCP metadata: outcome, changes, verification, limitations, and next step. Metadata is stored by ActivitySmith; it is not a place for raw transcripts, source code, or secrets. Generic notifications remain the default.
+
+`watchsmith_result.py` validates a local result and prints arguments for the existing MCP tool. It does not send or upload anything. Use `--share-details` to include reviewed summaries, and optionally `--include-result-link` for an existing, approved HTTPS result page. No separate server is required. See the [result format and workflow](docs/RESULTS.md) and [example](config/result-example.json).
+
+Metadata storage was verified through MCP history, and the user confirmed detail fields and line breaks in the iOS app. Result-link access has not been verified. The generic completion hook may still send a separate Push; this feature does not yet deduplicate across integrations.
 
 ## Security
 
@@ -207,10 +227,10 @@ Fixed: current scripts use `exit_code`, not zsh's special `status` variable.
 ## Uninstall
 
 ```bash
-./uninstall.sh
+./uninstall.sh --quiesced
 ```
 
-The previous notifier is restored when possible. The tagged `AGENTS.md` block and Keychain entry are intentionally left for manual review.
+The manifest restores original notifier dependencies before its configuration. The tagged `AGENTS.md` block and Keychain entry are intentionally left for manual review. If the user replaced notify, runtime files are retained for dependency safety.
 
 ## License
 
@@ -220,9 +240,9 @@ MIT
 
 Python 3.11 or newer is required for TOML validation. Installation supports `CODEX_HOME` (default: `~/.codex`). The installed dispatcher finds its state and sibling notifier relative to its own location, including when a GUI process does not export `CODEX_HOME`.
 
-The installer validates the entire TOML document before replacing the root `notify`. Multiline arrays and quoted keys are supported; nested settings remain unchanged. Invalid TOML or non-string notify arguments stop installation without editing the configuration. Backups use unique names, and configuration replacement is atomic. Reinstalling an unchanged dispatcher preserves the saved notifier. A JSON `null` records that no previous notifier existed. Missing saved state stops reinstallation/removal rather than guessing a replacement.
+The installer validates the entire TOML document before replacing the root `notify`. Multiline arrays and quoted keys are supported; nested settings remain unchanged. Invalid TOML or non-string notify arguments stop installation without editing the configuration. Private transaction journals retain original files; individual file replacements are atomic. Reinstalling an unchanged dispatcher preserves the saved notifier. A JSON `null` records that no previous notifier existed. Missing saved state stops reinstallation/removal rather than guessing a replacement.
 
-Uninstall restores the saved argument array only if the root notifier is still this installation's dispatcher. A notifier changed by the user is retained. Notify formatting may be normalized; the original text is available in the backup. Global policy updates and full installation rollback are still pending.
+Uninstall restores the saved argument array only if the root notifier is still this installation's dispatcher. A notifier changed by the user is retained. Notify formatting may be normalized; the original text is available in the backup. The managed policy is updated on reinstall; journaled installation recovery is now available; see the upgrade guide.
 
 Run the isolated regression suite without changing your Codex setup or sending notifications:
 
