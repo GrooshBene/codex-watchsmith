@@ -1,4 +1,20 @@
 #!/bin/zsh
 set -e
 unsetopt BG_NICE
-exec python3 -B "${0:A:h}/watchsmith_update.py" "$@"
+# Shells and GUI apps can resolve python3 to different installed versions.
+# Prefer PATH, then discover common macOS installations without changing PATH.
+typeset -a watchsmith_pythons
+watchsmith_pythons=(
+  python3 python3.{15,14,13,12,11}
+  /opt/homebrew/bin/python3 /usr/local/bin/python3
+  /Library/Frameworks/Python.framework/Versions/3.*/bin/python3(NOn)
+  /opt/homebrew/opt/python@3.*/bin/python3.*(NOn)
+  /usr/local/opt/python@3.*/bin/python3.*(NOn)
+)
+for watchsmith_python in "${watchsmith_pythons[@]}"; do
+  if "$watchsmith_python" -c 'import sys; assert sys.version_info >= (3, 11); import tomllib' >/dev/null 2>&1; then
+    exec "$watchsmith_python" -B "${0:A:h}/watchsmith_update.py" "$@"
+  fi
+done
+print -u2 'Watchsmith requires Python 3.11+ with tomllib. Install it or add its bin directory to PATH, then retry.'
+exit 1

@@ -74,3 +74,7 @@ Run `watchsmith doctor` for local status or `watchsmith doctor --json` for struc
 ## Python certificate verification on macOS
 
 The updater/bootstrap uses the system curl trust path on macOS. Python distributions with an unconfigured CA bundle therefore do not need verification disabled or a separate certificate workaround for updates. If system curl also fails, inspect network/system trust; do not bypass HTTPS validation.
+
+## Doctor fails with `No module named tomllib`
+
+The shell running the v0.2.0 launcher may select Python older than 3.11, even if another terminal has a newer Python. The updated launcher probes PATH and common macOS Python locations and selects an interpreter with Python 3.11+ and `tomllib`. It does not change your shell settings. If none is available, install Python 3.11+ or add its bin directory to PATH. The initial setup/install scripts still require a compatible `python3` on PATH.

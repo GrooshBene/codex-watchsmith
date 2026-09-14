@@ -21,6 +21,7 @@ Watchsmith adds notification integration to an existing Codex setup. The install
 - **macOS with zsh:** the scripts use zsh and macOS Keychain.
 - **A working Codex installation:** sign in and confirm you can complete a small task. Install Codex CLI as well if you want to use `codex-watch codex exec`; Desktop alone does not provide that command.
 - **Python 3.11 or newer:** `python3` must be available in your command path. The installer stops if Python or its TOML parser is unavailable.
+  The `watchsmith` command selects Python 3.11+ from PATH or common macOS installation locations, even when the default `python3` is older. If no compatible interpreter is found, it prints installation guidance.
 - **Node.js and npm:** needed to install and run ActivitySmith CLI using the commands below. See the [ActivitySmith CLI guide](https://activitysmith.com/sdks/cli) for its runtime requirements.
 - **The repository files:** the Quick start uses Git. If Git is unavailable, download and extract the repository ZIP, then open a terminal in that folder and start at `./install.sh`.
 

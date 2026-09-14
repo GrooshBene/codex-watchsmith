@@ -14,6 +14,7 @@ Use short, descriptive branch names:
 - `codex/docs-<topic>` for documentation
 - `codex/chore-<topic>` for maintenance
 - `codex/release-vX.Y.Z` for version and release preparation
+- `codex/hotfix-vX.Y.Z` for urgent compatible fixes and their patch release
 
 The `codex/` prefix is this repository's naming convention. Keep unrelated changes
 in separate branches. Rebase a personal feature branch onto current `main` when
