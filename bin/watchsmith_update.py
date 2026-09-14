@@ -222,7 +222,8 @@ def main():
         with tempfile.TemporaryDirectory(prefix='watchsmith-update-') as directory:
             source, digest = unpack(blob, checksum, target, Path(directory))
             env = dict(os.environ, CODEX_HOME=str(root), WATCHSMITH_PACKAGE_SHA256=digest)
-            base = ['zsh', str(source / 'install.sh')]
+            # Retain the launcher's compatible interpreter across installation.
+            base = [sys.executable, str(source / 'bin/watchsmith_install.py'), 'install']
             subprocess.run(base + ['--check'], env=env, check=True)
             subprocess.run(base + ['--upgrade', '--quiesced'], env=env, check=True)
             manifest = json.loads((root / 'watchsmith/installation.json').read_text())

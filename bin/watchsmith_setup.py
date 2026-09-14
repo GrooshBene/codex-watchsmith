@@ -128,7 +128,7 @@ def setup(home, source=None):
             return 1
     if source:
         env = dict(os.environ, CODEX_HOME=str(home))
-        command = ['zsh', str(source / 'install.sh')]
+        command = [sys.executable, str(source / 'bin/watchsmith_install.py'), 'install']
         try:
             check = subprocess.run(command + ['--check'], env=env, capture_output=True, text=True, timeout=30)
             if check.returncode:

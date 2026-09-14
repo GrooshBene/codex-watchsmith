@@ -38,6 +38,7 @@ Watchsmith는 이미 사용하는 Codex에 알림 기능을 연결하는 애드�
 - **정상 작동하는 Codex:** 로그인하고 간단한 작업이 완료되는지 먼저 확인하세요. `codex-watch codex exec`를 사용하려면 Codex CLI도 설치해야 합니다. Desktop 앱만으로 해당 명령이 제공되는 것은 아닙니다.
 - **Python 3.11 이상:** 터미널에서 `python3`를 실행할 수 있어야 합니다. Python이나 TOML 파서를 찾지 못하면 설치가 중단됩니다.
   `watchsmith` 명령은 기본 `python3`가 구버전이어도 PATH와 macOS의 일반적인 설치 위치에서 Python 3.11 이상을 찾아 실행합니다. 호환되는 Python이 없으면 설치 안내를 표시합니다.
+  업데이트와 설치 도우미는 선택한 Python을 설치 단계까지 그대로 사용하며, 기본 `python3`를 다시 선택하지 않습니다. 최초 셸 진입점은 여전히 PATH의 Python 3.11 이상을 요구합니다.
 - **Node.js와 npm:** 아래 명령으로 ActivitySmith CLI를 설치하고 실행하는 데 필요합니다. CLI의 실행 환경 요구사항은 [ActivitySmith CLI 공식 안내](https://activitysmith.com/sdks/cli)를 참고하세요.
 - **저장소 파일:** 빠른 설치 예시는 Git을 사용합니다. Git이 없다면 저장소 ZIP을 다운로드·압축 해제한 뒤 해당 폴더에서 터미널을 열고 `./install.sh`부터 진행할 수 있습니다.
 

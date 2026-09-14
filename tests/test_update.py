@@ -118,6 +118,17 @@ class UpdateTests(unittest.TestCase):
         manifest_path.write_text(json.dumps(old_manifest))
         before = manifest_path.read_bytes()
         runtime_before = (self.home / 'bin/watchsmith_update.py').read_bytes()
+        # Reproduce a shell whose default Python cannot import tomllib.
+        fake_bin = Path(self.tmp.name) / 'old python bin'
+        fake_bin.mkdir()
+        marker = fake_bin / 'unexpected-python-call'
+        old_python = fake_bin / 'python3'
+        old_python.write_text('#!/bin/sh\necho called > "' + str(marker) + '"\nexit 42\n')
+        old_python.chmod(0o755)
+        env['PATH'] = str(fake_bin) + os.pathsep + env['PATH']
+        path_patch = patch.dict(os.environ, {'PATH': env['PATH']})
+        path_patch.start()
+        self.addCleanup(path_patch.stop)
         with patch.object(U, 'download', side_effect=lambda url, limit: self.checksum.encode() if url.endswith('SHA256SUMS') else self.blob):
             self.assertEqual(self.call('update', '--quiesced'), 0)
         self.assertNotEqual((self.home / 'bin/watchsmith_update.py').read_bytes(), runtime_before)
@@ -127,10 +138,25 @@ class UpdateTests(unittest.TestCase):
         with patch.object(U, 'download') as network:
             self.assertEqual(self.call('update', '--quiesced'), 0)
             network.assert_not_called()
+        self.assertFalse(marker.exists(), 'installation reselected PATH python3')
         result = subprocess.run([str(self.home / 'bin/watchsmith'), 'rollback', '--quiesced'], env=env, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual((self.home / 'watchsmith/installation.json').read_bytes(), before)
         self.assertEqual((self.home / 'bin/watchsmith_update.py').read_bytes(), runtime_before)
+
+    def test_failed_preflight_preserves_existing_installation(self):
+        env = dict(os.environ, CODEX_HOME=str(self.home))
+        subprocess.run([sys.executable, str(ROOT / 'bin/watchsmith_install.py'), 'install'], env=env, capture_output=True, check=True)
+        manifest_path = self.home / 'watchsmith/installation.json'
+        record = json.loads(manifest_path.read_text())
+        record['release']['version'] = '0.1.0'
+        manifest_path.write_text(json.dumps(record))
+        (self.home / 'bin/codex-watch').write_text('user modification')
+        (self.home / 'watchsmith/update.lock').touch()
+        before = {str(p): p.read_bytes() for p in self.home.rglob('*') if p.is_file()}
+        with patch.object(U, 'download', side_effect=lambda url, limit: self.checksum.encode() if url.endswith('SHA256SUMS') else self.blob):
+            self.assertEqual(self.call('update', '--quiesced'), 1)
+        self.assertEqual(before, {str(p): p.read_bytes() for p in self.home.rglob('*') if p.is_file()})
 
     def test_prerelease_api_response_rejected(self):
         with patch.object(U, 'download', return_value=json.dumps(dict(self.release, prerelease=True)).encode()):
@@ -157,9 +183,10 @@ class UpdateTests(unittest.TestCase):
         namespace['release'] = lambda tag: self.release
         namespace['download'] = lambda url, limit: self.checksum.encode() if url.endswith('SHA256SUMS') else self.blob
         def launch(command, env):
-            self.assertEqual(command[0], 'zsh')
+            self.assertEqual(command[0], sys.executable)
             self.assertTrue(Path(command[1]).is_file())
-            self.assertEqual(Path(command[1]).name, 'setup.sh')
+            self.assertEqual(Path(command[1]).name, 'watchsmith_setup.py')
+            self.assertEqual(command[2:], ['setup'])
             self.assertEqual(env['WATCHSMITH_PACKAGE_SHA256'], hashlib.sha256(self.blob).hexdigest())
             return 0
         with patch.object(sys, 'argv', ['bootstrap']), patch.object(sys.stdin, 'isatty', return_value=True), patch.object(subprocess, 'call', side_effect=launch) as call:

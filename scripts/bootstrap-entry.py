@@ -16,10 +16,10 @@ def bootstrap_main():
         checksum = download(asset_url(data, 'SHA256SUMS'), 4096).decode('ascii')
         with tempfile.TemporaryDirectory(prefix='watchsmith-setup-') as directory:
             source, digest = unpack(blob, checksum, tag, Path(directory))
-            if not (source / 'setup.sh').is_file():
+            if not (source / 'bin/watchsmith_setup.py').is_file():
                 raise ValueError('this release has no setup wizard; follow its README')
             env = dict(os.environ, WATCHSMITH_PACKAGE_SHA256=digest)
-            return subprocess.call(['zsh', str(source / 'setup.sh')], env=env)
+            return subprocess.call([sys.executable, str(source / 'bin/watchsmith_setup.py'), 'setup'], env=env)
     except (OSError, ValueError, KeyError, TypeError, tarfile.TarError) as error:
         print('Bootstrap failed; no unverified installer was executed. ' + type(error).__name__, file=sys.stderr)
         return 1

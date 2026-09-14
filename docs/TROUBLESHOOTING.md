@@ -78,3 +78,7 @@ The updater/bootstrap uses the system curl trust path on macOS. Python distribut
 ## Doctor fails with `No module named tomllib`
 
 The shell running the v0.2.0 launcher may select Python older than 3.11, even if another terminal has a newer Python. The updated launcher probes PATH and common macOS Python locations and selects an interpreter with Python 3.11+ and `tomllib`. It does not change your shell settings. If none is available, install Python 3.11+ or add its bin directory to PATH. The initial setup/install scripts still require a compatible `python3` on PATH.
+
+## Update finds a release but reports `Python 3.11+ is required`
+
+In v0.2.1, the launcher can choose a compatible Python but the updater's shell installer can select an older PATH default again. The updated implementation invokes the bundled Python installer with the running interpreter, and retains it through bootstrap/setup as well. For the first upgrade from an affected version, place your Python 3.11+ bin directory first on PATH in that terminal. A failed Python preflight does not apply the update; check `watchsmith version` afterward.

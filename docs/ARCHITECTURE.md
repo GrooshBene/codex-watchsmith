@@ -59,7 +59,7 @@ callback timeout is not evidence of a watchdog failure.
 
 ## Release updater
 
-`watchsmith update` retrieves and verifies official versioned release assets before invoking the bundled installer. Version/commit/checksum metadata participates in the same installation journal. Installed installer/configuration modules support offline rollback without a checkout. No additional notification or update server is introduced. See [UPDATES.md](UPDATES.md).
+`watchsmith update` retrieves and verifies official versioned release assets before invoking the bundled Python installer with `sys.executable`. The updater, bootstrap, and setup wizard retain their running interpreter when starting the next Python stage instead of reselecting `python3` through a shell. Rollback already uses the running interpreter. Version/commit/checksum metadata participates in the same installation journal. Installed installer/configuration modules support offline rollback without a checkout. No additional notification or update server is introduced. See [UPDATES.md](UPDATES.md).
 
 ## Guided setup
 
