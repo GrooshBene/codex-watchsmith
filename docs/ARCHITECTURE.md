@@ -56,3 +56,11 @@ stop for review. Reinstallation is a no-op once reconciled; removal restores the
 original notifier while retaining Computer Use. No extra first-install action is
 required. External callback execution is separate from watchdog timing; the earlier
 callback timeout is not evidence of a watchdog failure.
+
+## Release updater
+
+`watchsmith update` retrieves and verifies official versioned release assets before invoking the bundled installer. Version/commit/checksum metadata participates in the same installation journal. Installed installer/configuration modules support offline rollback without a checkout. No additional notification or update server is introduced. See [UPDATES.md](UPDATES.md).
+
+## Guided setup
+
+`watchsmith_setup.py` separates interactive configuration from read-only diagnostics. Source-package setup invokes the existing installer; installed setup completes optional connection/PATH steps. The release builder assembles a standalone bootstrap using the same updater verification functions, then starts setup from a verified archive. See [SETUP.md](SETUP.md).

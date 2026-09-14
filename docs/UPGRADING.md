@@ -106,3 +106,7 @@ stop for review. Reinstallation is a no-op once reconciled; removal restores the
 original notifier while retaining Computer Use. No extra first-install action is
 required. External callback execution is separate from watchdog timing; the earlier
 callback timeout is not evidence of a watchdog failure.
+
+## Versioned release updates
+
+After the one-time migration to an updater-enabled release, use `watchsmith update --check`, `watchsmith update --quiesced`, and `watchsmith rollback --quiesced`. Existing v0.1.0 installations need the manual path above once. See [UPDATES.md](UPDATES.md).

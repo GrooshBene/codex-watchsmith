@@ -61,6 +61,18 @@ You do not need to remove an existing `notify` setting: the installer saves it a
 
 The installer's completion message means local files and configuration have been installed. Finish the CLI installation, command-path setup, Keychain registration, connection test, and Codex restart below before treating notification setup as complete.
 
+## Guided installation (v0.2.0+)
+
+From a checkout or release package containing the setup wizard, run `./setup.sh`.
+It checks prerequisites, offers missing CLI installation, preserves existing
+configuration, guides Keychain registration, and optionally adds the command path
+and sends one test notification. Account/device pairing and MCP authorization
+remain separate guided steps.
+
+After installation, use `watchsmith setup` to finish skipped steps and
+`watchsmith doctor` (or `--json`) for read-only local diagnostics. The bootstrap entry point is included in v0.2.0 and later; v0.1.0 does not include it. See [guided setup](docs/SETUP.md) for the single-command flow
+and remaining prerequisites. The manual path below remains available.
+
 ## New installation
 
 For an existing or legacy installation, use **Upgrade an existing computer** below. Do not uninstall first or delete your existing `notify` setting.
@@ -120,6 +132,24 @@ Restart Codex, then run `activitysmith-test` and complete a new short task. New 
 
 To undo a migration, stop affected jobs and run `./install.sh --rollback TRANSACTION_ID --quiesced`, using the ID printed during installation. Keep private recovery journals out of Git. See [upgrade and recovery details](docs/UPGRADING.md).
 
+## Updating after the one-time migration
+
+Versions containing the new updater install the following commands automatically:
+
+```bash
+watchsmith version
+watchsmith update --check
+# Finish active jobs and close affected clients before applying:
+watchsmith update --quiesced
+watchsmith rollback --quiesced
+```
+
+The updater checks official stable releases, verifies the downloaded package,
+and reuses the existing installer and recovery journals. No Git checkout is
+needed after migration. v0.1.0 predates this command and requires one manual
+upgrade to a release containing it. These commands are included in v0.2.0 and later. See [updates and publishing](docs/UPDATES.md) for verification, trust,
+and recovery limits.
+
 ## What install.sh changes
 
 Files:
@@ -129,6 +159,11 @@ Files:
 ├── AGENTS.md
 ├── config.toml
 ├── bin/
+│   ├── watchsmith
+│   ├── watchsmith_setup.py
+│   ├── watchsmith_update.py
+│   ├── watchsmith_install.py
+│   ├── watchsmith_config.py
 │   ├── codex-watch
 │   ├── watchsmith_result.py
 │   ├── watchsmith_progress.py
@@ -308,3 +343,8 @@ stop for review. Reinstallation is a no-op once reconciled; removal restores the
 original notifier while retaining Computer Use. No extra first-install action is
 required. External callback execution is separate from watchdog timing; the earlier
 callback timeout is not evidence of a watchdog failure.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for feature branches, Conventional Commits,
+pull requests, validation, and version tags.

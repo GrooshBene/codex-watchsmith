@@ -62,3 +62,15 @@ stop for review. Reinstallation is a no-op once reconciled; removal restores the
 original notifier while retaining Computer Use. No extra first-install action is
 required. External callback execution is separate from watchdog timing; the earlier
 callback timeout is not evidence of a watchdog failure.
+
+## Update is unavailable or rejected
+
+An older release may lack updater assets; v0.1.0 requires one manual migration. Network failures, missing assets, checksum mismatches, unsafe archives, and prereleases are rejected before execution. `update` requires `--quiesced` for application. If an interrupted installation has a pending journal, use `watchsmith rollback --quiesced` before trying again. Do not bypass verification by executing a rejected archive. See [UPDATES.md](UPDATES.md).
+
+## Guided diagnosis
+
+Run `watchsmith doctor` for local status or `watchsmith doctor --json` for structured status without credentials/config contents. This does not validate remote authorization or send notifications. Rerun `watchsmith setup` to finish skipped steps; use a verified package or updater for runtime repair. Missing Python/npm must be addressed before continuing. See [SETUP.md](SETUP.md).
+
+## Python certificate verification on macOS
+
+The updater/bootstrap uses the system curl trust path on macOS. Python distributions with an unconfigured CA bundle therefore do not need verification disabled or a separate certificate workaround for updates. If system curl also fails, inspect network/system trust; do not bypass HTTPS validation.
