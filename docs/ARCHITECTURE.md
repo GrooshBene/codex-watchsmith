@@ -31,7 +31,7 @@ The isolated tests exercise a recording notifier and mock completion transport. 
 
 ## Optional result summaries
 
-The agent produces a reviewed versioned result record and may use `watchsmith_result.py` to build arguments for the existing ActivitySmith MCP. The helper is local-only; explicit switches include metadata and an optional reviewed HTTPS result link. No transport, credential storage, approval backend, or artifact hosting is added. The completion hook remains generic. See [RESULTS.md](RESULTS.md) for the contract, consent boundaries, metadata limits, and known duplicate-notification limitation.
+The agent produces a reviewed versioned result record and may use `watchsmith_result.py` to build arguments for the existing ActivitySmith MCP. The helper is local-only; explicit switches include metadata and an optional reviewed HTTPS result link. No transport, credential storage, approval backend, or artifact hosting is added. The completion hook extracts a bounded current-event preview by default. See [RESULTS.md](RESULTS.md) for the contract, consent boundaries, metadata limits, and known duplicate-notification limitation.
 
 Reinstallation backs up and atomically updates only the marked global agent-policy block. Ambiguous markers are rejected before notify configuration is changed; surrounding personal instructions remain intact. These writes now participate in a journaled installer transaction with conflict-aware rollback.
 
@@ -45,7 +45,7 @@ watchsmith_install.py validates known runtime hashes, saves original dependencie
 
 When the recognized Computer Use callback is configured, the installer keeps it
 outside Watchsmith: `Codex → Computer Use → Watchsmith dispatcher`. The dispatcher
-forwards to the original inner notifier and sends its own generic notification.
+forwards to the original inner notifier and sends its own completion notification.
 This prevents a restart from adding another Computer Use layer. The supported
 shape is `SkyComputerUseClient turn-ended [--previous-notify JSON]`.
 
@@ -73,4 +73,4 @@ Shared progress contexts now retain a bounded, explicitly supplied content state
 
 ## Reviewed completion routing
 
-The result helper can stage an approved preview in a private summaries table in the existing delivery database. The notifier resolves exact turn identity or a random final-response reference plus matching thread, binds the result to the event and uses the existing generic-owner claim as the single sender. No transcript summarization or most-recent-file lookup occurs. CLI title/message/subtitle carry only prepared text. Unknown direct-MCP outcomes suppress generic retries. Client preservation of the reference is an integration requirement; storage failures and independent senders remain best-effort.
+The notifier extracts request/result sentences directly from the current completion event in memory, with bounded input/output and basic filtering. It does not read session history or invoke another model. Optional reviewed previews require exact thread/turn IDs in the existing private summaries table; legacy marker-only entries are ignored. Both routes share the existing generic-owner delivery claim. No final-response marker is generated or required. Unknown direct-MCP outcomes suppress retries; storage failures and independent senders remain best-effort. Preview extraction changes the default sharing boundary; see RESULTS.md for the environment opt-out and privacy limitations.

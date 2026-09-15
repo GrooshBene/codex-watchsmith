@@ -110,3 +110,7 @@ callback timeout is not evidence of a watchdog failure.
 ## Versioned release updates
 
 After the one-time migration to an updater-enabled release, use `watchsmith update --check`, `watchsmith update --quiesced`, and `watchsmith rollback --quiesced`. Existing v0.1.0 installations need the manual path above once. See [UPDATES.md](UPDATES.md).
+
+## v0.2.3 completion migration
+
+Upgrade both runtime and the managed agent policy, then restart Codex. New completion notifications extract short request/result text from the current event and may expose it on the Lock Screen by default. Review [sharing and opt-out](RESULTS.md#automatic-completion-summaries-v023) before updating sensitive environments. The new policy removes final-response marker instructions; the helper no longer generates them. Existing exact-ID queues remain readable, while marker-only queues are ignored. No database deletion, Keychain reset or notifier-chain replacement is needed. Old phone notifications and old conversation text are not removed by updating. Use `watchsmith update --quiesced` after closing affected clients to install the latest published release; checkout development installations remain marked as development until upgraded.

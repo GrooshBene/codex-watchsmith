@@ -1,17 +1,78 @@
 #!/usr/bin/env python3
-"""Generic completion fallback, coordinated only for exact Codex event IDs."""
+"""Summarize the current completion event locally; coordinate exact event IDs."""
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import sqlite3
 import subprocess
 import sys
 import time
-from watchsmith_delivery import Store, event_key, MARKER
+from watchsmith_delivery import Store, event_key
 
 SERVICE = 'activitysmith-codex'
 HOME = Path(__file__).resolve().parent.parent
+
+
+def excerpt(text, limit):
+    return text if len(text) <= limit else text[:limit - 1].rstrip() + '…'
+
+
+def sentences(value):
+    """Bounded local extraction, not a model call or a complete privacy filter."""
+    if not isinstance(value, str):
+        return []
+    text = value[:64000]
+    text = re.sub(r'<!--.*?(?:-->|\Z)', '', text, flags=re.S)
+    text = re.sub(r'(?ms)^\s*(```|~~~).*?^\s*\1[^\n]*(?:\n|\Z)|^\s*(?:```|~~~).*\Z', '', text)
+    text = re.sub(r'!?\[([^\]\n]*)\]\([^\n)]*\)', r'\1', text)
+    text = re.sub(r'https?://\S+|(?:/Users/|/home/|/private/|~/|[A-Z]:\\)\S+|\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b', '[비공개]', text)
+    text = re.sub(r'\b(?:\d{1,3}\.){3}\d{1,3}\b|\b(?:sk-|ghp_|github_pat_)[\w-]+', '[비공개]', text)
+    result = []
+    for line in text.splitlines():
+        # Exclude obvious credentials, quoted source and machine directives.
+        if re.search(r'(?i)password|passwd|secret|api[_ -]?key|access[_ -]?token|authorization|비밀번호|인증정보|비밀|기밀', line):
+            continue
+        if line.lstrip().startswith(('>', '::', '<', '{', '}', '|')):
+            continue
+        line = re.sub(r'^\s*(?:#{1,6}\s*|[-*+]\s+|\d+[.)]\s+)', '', line)
+        line = re.sub(r'[`*_]', '', line)
+        line = ' '.join(line.split())
+        for part in re.split(r'(?<=[.!?。])\s+', line):
+            if len(part) >= 4 and part not in result:
+                result.append(part)
+    return result[:200]
+
+
+def completion_payload(event):
+    """Use only this event's request and answer; never guess a recent turn."""
+    if os.environ.get('WATCHSMITH_COMPLETION_PREVIEW', '1') == '0':
+        return {'title': 'Codex 응답 종료', 'message': '요청에 대한 응답이 끝났습니다.'}
+    answer = sentences(event.get('last-assistant-message'))
+    inputs = event.get('input-messages')
+    request = []
+    if isinstance(inputs, list):
+        for value in reversed(inputs[-20:]):
+            request = sentences(value)
+            if request:
+                break
+    verification = next((s for s in answer if re.search(r'검증|테스트|tests?\b|verified|validation', s, re.I)), None)
+    # Keep the leading outcome, plus a limitation even if it appears late.
+    limitation = next((s for s in answer if re.search(r'못했|못한|미완료|미검증|미적용|차단|실패했|아직|남아|not (?:tested|verified|applied)|blocked|failed|unable', s, re.I)), None)
+    primary = next((s for s in answer if len(s) >= 12), answer[0] if answer else '')
+    pieces = [primary] if primary else []
+    extra = limitation or next((s for s in answer if s != primary and s != verification and len(s) >= 12), None)
+    if extra and extra != primary:
+        pieces = [excerpt(primary, 100), excerpt(extra, 77)]
+    topic = request[0] if request else (primary or 'Codex')
+    if primary and re.fullmatch(r'(?:응|네|좋아|알겠어|그렇게|그거|진행|계속|해줘|해주세요|부탁해|go ahead|continue|yes|ok|please|[\s.!?,])+', topic, re.I):
+        topic = primary
+    payload = {'title': excerpt(topic, 60) + ' · 작업 결과',
+               'message': excerpt(' '.join(pieces), 180) if pieces else '요청에 대한 응답이 끝났습니다. 자세한 내용은 Codex에서 확인해 주세요.'}
+    if verification and verification not in pieces:
+        payload['subtitle'] = excerpt(verification, 140)
+    return payload
 
 
 def get_key():
@@ -30,7 +91,7 @@ def get_key():
 def deliver(cli, key, payload=None):
     env = os.environ.copy()
     env['ACTIVITYSMITH_API_KEY'] = key
-    payload = payload or {'title': 'Codex 응답 종료', 'message': '결과 요약을 연결하지 못했습니다. Codex에서 확인해 주세요.'}
+    payload = payload or completion_payload({})
     args = [cli, 'push', '--title', payload['title'], '--message', payload['message']]
     if payload.get('subtitle'):
         args += ['--subtitle', payload['subtitle']]
@@ -67,10 +128,9 @@ def main():
             identity = event_key(evt.get('thread-id'), evt.get('turn-id'))
         except ValueError:
             pass  # Older clients retain best-effort generic completion.
-        preview = None
+        preview = completion_payload(evt)
         try:
-            final_text = evt.get('last-assistant-message')
-            if identity or (isinstance(final_text, str) and MARKER.search(final_text)):
+            if identity and os.environ.get('WATCHSMITH_COMPLETION_PREVIEW', '1') != '0':
                 store = Store(HOME)
                 prepared = store.summary(evt)
                 if prepared:
@@ -97,7 +157,7 @@ def main():
             except (OSError, sqlite3.Error):
                 claim = None
                 print('[watchsmith] delivery store unavailable; generic fallback is not deduplicated', file=sys.stderr)
-        outcome = deliver(cli, key, preview) if preview else deliver(cli, key)
+        outcome = deliver(cli, key, preview)
         if store and claim:
             try:
                 store.finish(identity, claim['token'], outcome)
