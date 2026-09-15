@@ -45,6 +45,30 @@ def sentences(value):
     return result[:200]
 
 
+def request_sentences(value):
+    """Remove known client envelopes; None means a reply-only current input."""
+    if not isinstance(value, str):
+        return []
+    text = value[:64000]
+    ambient = bool(re.search(r'<in-app-browser-context\b', text))
+    text = re.sub(r'<in-app-browser-context\b[^>]*>.*?(?:</in-app-browser-context\s*>|\Z)', '', text, flags=re.S)
+    reply = bool(re.search(r'<send_user_message_question_reply\b', text))
+    text = re.sub(r'<send_user_message_question_reply\b[^>]*>.*?(?:</send_user_message_question_reply\s*>|\Z)', '', text, flags=re.S)
+    if ambient or reply:
+        text = re.sub(r'(?m)^\s*## My request:\s*$', '', text)
+    # Some clients supply the response array without its enclosing tag.
+    try:
+        data = json.loads(text)
+    except (ValueError, RecursionError):
+        data = None
+    if isinstance(data, list) and data and all(
+            isinstance(row, dict) and {'questionItemId', 'question', 'answer'} <= row.keys()
+            for row in data):
+        return None
+    result = sentences(text)
+    return result if result or not reply else None
+
+
 def completion_payload(event):
     """Use only this event's request and answer; never guess a recent turn."""
     if os.environ.get('WATCHSMITH_COMPLETION_PREVIEW', '1') == '0':
@@ -54,8 +78,10 @@ def completion_payload(event):
     request = []
     if isinstance(inputs, list):
         for value in reversed(inputs[-20:]):
-            request = sentences(value)
-            if request:
+            candidate = request_sentences(value)
+            request = candidate or []
+            # A current confirmation must not inherit an older task title.
+            if request or candidate is None:
                 break
     verification = next((s for s in answer if re.search(r'검증|테스트|tests?\b|verified|validation', s, re.I)), None)
     # Keep the leading outcome, plus a limitation even if it appears late.

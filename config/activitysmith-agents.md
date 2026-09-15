@@ -12,8 +12,30 @@
 ## 상황별 Live Activity 선택
 - 시작 시 단계가 명확하면 segmented_progress, 실제 진행량을 알면 progress, 진행률을 모르면 경과 시간 timer를 사용한다. stats/metrics는 실제 측정값이 있을 때만 사용하며, alert는 현재 상태 안내에 사용한다. 타입을 다양하게 보이게 하려고 임의의 수치·시간·단계를 만들지 않는다.
 - 동일 실행에서는 먼저 선택된 타입을 유지한다. 상태 변화는 title/subtitle·색상·아이콘·지원되는 배지로 표현한다. 기본 색상은 진행 blue, 판단 대기 orange, 실패 red, 완료 green이다. 색상만으로 상태를 전달하지 않는다.
-- 사용자 판단이 필요하면 현재 타입의 문구·배지를 바꾸고 Push로 알린다. 원격 승인 버튼·자동 재개·응답 종료 후 대기 알림 유지 기능은 아직 연결되지 않았으므로 있다고 설명하지 않는다.
+- 사용자 판단이 필요하면 아래 원격 확인 규칙과 ActivitySmith 전용 승인 도구를 사용한다. 앱 종료 후 자동 재개나 Codex 자체 권한 승인을 대신한다고 설명하지 않는다.
 - 완료 시 새 Live Activity를 만들지 않고 기존 카드를 종료한다. 사용자에게 허용받은 경우 작업명과 결과 요약 Push를 보낸다. 일반 완료 hook과의 중복 조율은 기존 정확한 ID 조건을 유지한다.
+
+## 상황별 메시지 선택
+- 계획·분석·구현·검증·빌드·설치·배포·재시도·복구 등 실제 단계가 바뀌면 작업명과 현재 수행 내용을 갱신한다. 사용자가 허용한 작업을 진행하기 위해 불필요한 확인 질문을 추가하지 않는다. 같은 상태를 반복 전송하는 heartbeat는 보내지 않는다.
+- 설치된 watchsmith_result.py --list-scenarios로 29개 상황을 확인한다. 검토한 JSON을 watchsmith_result.py <파일> --scenario <상황> --share-preview로 처리하면 기존 MCP 도구에 전달할 인수와 전달 경로를 반환한다. 이 helper는 전송·명령 실행·응답 대기를 수행하지 않는다. 명령·대상에도 비밀이나 개인정보가 있으면 외부 승인에 담지 말고 로컬 확인을 사용한다.
+- 입력의 task_name은 작업명, summary는 실제 수행 내용·판단 근거다. “작업 중”만 쓰지 말고 지금 무엇을 확인하거나 변경하는지 간결하게 적는다. 문구를 다양하게 만들기 위해 사실이나 진행률을 만들지 않는다.
+- 단계형은 실제 current_step/number_of_steps, 진행률형은 실제 percentage를 제공한다. 측정값이 없으면 기본 시간형을 사용한다. metrics/stats는 실제 수치가 있을 때만 사용한다.
+- route=live_activity이면 동일 작업의 stream_key와 타입을 유지한다. 카드가 이미 있다면 activity_type과 해당 타입의 실제 수치·timer_start_at을 이어받는다. wrapper 환경에서는 기존 claim 절차를 먼저 거치고, helper의 제안보다 claim이 반환한 키·타입·내용을 우선한다. 동일 실행의 타이머 시작 시각을 초기화하지 않는다.
+- route=completion_hook이면 최종 답변에 작업명·결과·검증·남은 문제를 표현하고 자동 완료 hook에 맡긴다. completed/partial/failed/cancelled/expired는 실제 상태로 선택한다. 시나리오 출력을 추가 MCP 완료 Push로 보내지 않는다.
+
+## 원격 확인과 후속 작업
+- 아직 허용받지 않은 구체적인 후속 작업에서만 질문한다. approve_validation/approve_commit/approve_push/approve_release/approve_retry/approve_alternative/approve_resume 중 맞는 상황을 선택한다. 이미 받은 커밋·푸시 등의 지속적인 허용은 유지한다.
+- 요청 전 수행할 정확한 명령 또는 도구 인수, 대상 범위와 변경 내용을 확정하고 검토한다. execution_context와 scope를 포함한다. 사용자가 선택할 대상이 구체적이지 않으면 승인 요청을 만들지 않는다.
+- 반환된 request_approval 인수를 사용한다. 실제 클라이언트의 MCP Tasks 지원과 결과 회수가 확인된 경우에만 request_approval_task를 선택한다. 버튼은 “커밋 진행 / 여기서 종료”, “재시도 / 중단”처럼 두 행동을 명확히 표시한다. 세 선택지가 필요하면 별도 후속 질문으로 나눈다.
+- 선택 알림은 기본 delivery=live_activity로 보내 버튼을 바로 보여준다. 실제 delivery_surface를 확인하고 도구 성공만으로 기기 표시를 단정하지 않는다. Push는 사용자가 요청하거나 Live Activity를 사용할 수 없다고 확인된 경우의 보조 수단이다. Push 또는 auto를 선택하면 “Push 알림은 길게 눌러 선택하세요” 안내를 포함한다. 명령 승인 Push의 제목이 서버에서 Approve command로 표시될 수 있으므로 질문 전체가 제목이라고 안내하지 않는다.
+- wrapper 밖에서는 자신이 소유한 진행 카드만 종료한 뒤 승인 카드를 요청한다. wrapper 안에서는 python3 "$WATCHSMITH_PROGRESS_HELPER" approval-pause를 먼저 호출한다. send일 때 반환된 pause_live_activity_stream 인수를 사용하고, 같은 token으로 approval-finish --outcome accepted/failed/unknown을 기록한다. 명시적 원격 성공과 recorded=true 또는 ready 응답을 확인한 뒤에만 승인 카드를 요청한다. wait/skip이면 새 카드를 만들지 않는다. pause는 선택 대기를 위한 실제 중단이며 ended로 실행 전체를 닫지 않는다.
+- 승인 후 후속 작업을 계속할 때 wrapper의 approval-resume으로 받은 resume_live_activity_stream 인수를 사용하고 approval-finish로 성공을 기록한다. 그 뒤 기존 claim/set/finish 절차로 같은 키·타입·시작 시각을 이어받는다. 거절·취소·만료 뒤 작업을 마치면 진행 표시를 재개하지 않는다. 남은 자신의 스트림은 기존 종료 규칙으로 정리한다.
+- 전환 결과가 unknown이거나 프로세스가 끊겼으면 pause/resume이 성공했다고 추정하지 않는다. 로컬 전환 상태는 진행 claim과 watchdog을 계속 억제한다. 다른 키로 우회하거나 승인 요청을 반복하지 말고 원격 상태를 확인한다. 복구를 확정할 수 없으면 실행을 중단하고 자신의 스트림을 정리한다. 종료된 실행은 늦은 확인 응답으로 다시 열지 않는다.
+- 질문을 한 번 만든 후 반환된 approval ID를 유지한다. pending이면 같은 ID로 wait_for_approval을 사용하고, 대기 호출 종료를 승인 요청 만료나 거절로 해석하지 않는다. pending마다 새 질문·Push를 생성하지 않는다. 대기 중 최종 응답을 보내 작업을 완료 처리하지 않는다.
+- 서버가 해당 요청의 승인 상태를 명시적으로 반환했을 때만, 현재 대화에서 아직 실행하지 않은 동일한 범위의 후속 작업을 한 번 수행한다. 실행 직전에 대상·변경 내용이 승인 시점과 같고 요청이 취소되지 않았는지 확인한다. 범위가 달라지면 기존 승인을 재사용하지 않는다. 결과가 불명확한 실행을 자동 재시도하지 않는다.
+- 거절·취소·만료이면 후속 작업을 실행하지 않고 실제 중단 사유로 마무리한다. 로컬에서 사용자가 취소하거나 요청이 더 이상 필요 없으면 같은 approval ID로 cancel_approval을 호출한다. 서버 응답이 불명확하면 get_approval로 확인하며 승인으로 추정하지 않는다.
+- 승인 질문 자체에 현재 결과가 포함되면 같은 순간에 완료 요약 Push를 따로 보내지 않는다. 선택 뒤 후속 작업을 진행하거나 중단한 최종 결과는 기존 완료 hook이 전송한다.
+- 이 흐름은 활성 에이전트 세션 안의 작업 진행 규칙이다. 프로세스 종료·앱 재시작 후 자동 복구, 영구적인 한 번만 실행 보장, Codex의 샌드박스/도구 권한 승인 우회는 제공하지 않는다. 세션이 끊겼다면 상태와 실행 여부를 다시 확인하기 전에는 이어서 실행하지 않는다.
 
 ## Live Activity 종료와 화면 제거
 - wrapper 사용 여부와 관계없이 자신이 시작하거나 인계받은 Live Activity를 종료할 때는 동일한 stream_key와 content_state.type으로 end_live_activity_stream을 한 번 호출한다. 다른 작업의 알림을 목록 순서나 최근 항목으로 추정해 종료하지 않는다.

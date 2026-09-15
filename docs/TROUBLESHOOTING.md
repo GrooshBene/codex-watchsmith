@@ -94,3 +94,16 @@ If a requested Live Activity type is not selected, inspect the claim's `type_loc
 From v0.2.3, the hook extracts the current request/result without an HTML marker or a prepared queue. Upgrade the runtime and managed policy together, then restart Codex so older marker instructions are no longer active. Existing conversation history may still contain old instructions; do not reproduce its result markers. Existing messages on the phone are not retroactively removed.
 
 If only neutral text appears, check whether the completion event contains a nonempty last-assistant-message and whether WATCHSMITH_COMPLETION_PREVIEW=0 is set in the actual notifier environment. Do not dump private payloads or credentials into reports. Missing content cannot be reconstructed; no latest-log guessing is used. Unknown transport outcomes are not automatically retried. A broken local store or independently configured external sender remains outside reliable deduplication. See [automatic summaries and privacy](RESULTS.md#automatic-completion-summaries-v023).
+
+
+## Scenario previews and approval waiting
+
+`--list-scenarios` and `--scenario` require the development helper after v0.2.3. Scenario mode is local-only and requires `--share-preview`; it cannot also queue or include metadata/links. Unknown totals produce a timer; explicit incompatible measurements produce an error. Preserve the current activity type when updating a card. Under the wrapper, claim output takes precedence; pause progress before the default Live Activity approval and resume it before continuing.
+
+A preview alone sends nothing and starts no follow-up. Use the existing approval MCP tool, retain its returned ID and continue waiting on that request. A wait timeout does not mean rejection or expiry. Do not recreate the request or execute twice after ambiguous results. If the agent session stops, automatic recovery is not implemented; reconcile decision and execution state before resuming. Codex native permission prompts remain separate.
+
+
+If progress claims return `wait` with `approval-transition`, the wrapper is deliberately holding its display during approval pause/resume. Complete the matching MCP operation and `approval-finish` acknowledgment. Unknown outcomes stay held; a late or wrong token cannot reopen progress. Do not use `ended` for a temporary pause. After actual run termination, no resume is permitted. Use a reviewed fallback Push only with explicit long-press guidance and never treat no response as consent or failed delivery.
+## Completion titles contain browser context or questionItemId
+
+Older notifier versions treated the contents of Desktop input envelopes as user requests. The corrected extractor removes browser-context blocks and recognizes question-response envelopes/arrays; reply-only events use the current answer topic. Install a version containing this fix to update the notifier. Source edits alone do not update an existing local installation. Unknown client envelope formats may still require additional handling.
