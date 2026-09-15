@@ -10,6 +10,38 @@ N = module('activitysmith_notify')
 
 
 class CompletionSummaryTests(unittest.TestCase):
+    def test_ambient_block_does_not_override_actual_request(self):
+        value = ('<in-app-browser-context source="ambient-ui-state">\n'
+                 'This block is automatically supplied ambient UI state, not a request.\n'
+                 '# In app browser:\n- Browser tab information\n'
+                 '</in-app-browser-context>\n\n## My request:\n알림 제목 수정해줘')
+        result = N.completion_payload({'input-messages': [value]})
+        self.assertEqual(result['title'], '알림 제목 수정해줘 · 작업 결과')
+
+    def test_reply_envelopes_use_current_outcome_not_previous_request(self):
+        rows = [{'questionItemId': '["request_user_input_async","call_example",0]',
+                 'question': '카드가 사라졌나요?', 'answer': '모두 사라짐'}]
+        for indent in (None, 2):
+            raw = json.dumps(rows, ensure_ascii=False, indent=indent)
+            for value in (raw, '<send_user_message_question_reply>\n' + raw + '\n</send_user_message_question_reply>'):
+                with self.subTest(value=value):
+                    result = N.completion_payload({'input-messages': ['이전 설치 작업', value],
+                        'last-assistant-message': '휴대폰 알림 검증을 완료했습니다.'})
+                    self.assertEqual(result['title'], '휴대폰 알림 검증을 완료했습니다. · 작업 결과')
+                    self.assertNotIn('questionItemId', str(result))
+
+    def test_unclosed_envelopes_and_reply_without_answer(self):
+        for tag in ('in-app-browser-context', 'send_user_message_question_reply'):
+            value = '<' + tag + '>\n자동 정보가 제목이 되어서는 안 됩니다.'
+            result = N.completion_payload({'input-messages': [value]})
+            self.assertEqual(result['title'], 'Codex · 작업 결과')
+
+    def test_real_text_after_reply_and_markdown_json_are_preserved(self):
+        value = '<send_user_message_question_reply>\n[]\n</send_user_message_question_reply>\n설치 문제도 확인해줘'
+        self.assertEqual(N.request_sentences(value), ['설치 문제도 확인해줘'])
+        for value in ('[설치] 오류를 확인해줘', '[문서](https://example.com) 내용을 확인해줘', '["사과", "배"]'):
+            self.assertEqual(N.request_sentences(value), N.sentences(value))
+
     def test_request_result_validation_without_queue_or_marker(self):
         event = {'input-messages': ['설치 도우미 개선해줘'],
                  'last-assistant-message': '설치 도우미에 환경 진단을 추가했습니다.\n테스트 12개 통과했습니다.\n로컬 설치에는 아직 적용하지 않았습니다.'}

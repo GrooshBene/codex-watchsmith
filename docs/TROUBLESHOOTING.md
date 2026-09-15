@@ -94,3 +94,7 @@ If a requested Live Activity type is not selected, inspect the claim's `type_loc
 From v0.2.3, the hook extracts the current request/result without an HTML marker or a prepared queue. Upgrade the runtime and managed policy together, then restart Codex so older marker instructions are no longer active. Existing conversation history may still contain old instructions; do not reproduce its result markers. Existing messages on the phone are not retroactively removed.
 
 If only neutral text appears, check whether the completion event contains a nonempty last-assistant-message and whether WATCHSMITH_COMPLETION_PREVIEW=0 is set in the actual notifier environment. Do not dump private payloads or credentials into reports. Missing content cannot be reconstructed; no latest-log guessing is used. Unknown transport outcomes are not automatically retried. A broken local store or independently configured external sender remains outside reliable deduplication. See [automatic summaries and privacy](RESULTS.md#automatic-completion-summaries-v023).
+
+## Completion titles contain browser context or questionItemId
+
+Older notifier versions treated the contents of Desktop input envelopes as user requests. The corrected extractor removes browser-context blocks and recognizes question-response envelopes/arrays; reply-only events use the current answer topic. Install a version containing this fix to update the notifier. Source edits alone do not update an existing local installation. Unknown client envelope formats may still require additional handling.
