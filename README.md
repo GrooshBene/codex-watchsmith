@@ -7,7 +7,7 @@ Mobile progress and completion notifications for long-running Codex work.
 `codex-watchsmith` combines:
 
 - **ActivitySmith MCP + global `AGENTS.md`** for semantic, agent-driven Live Activities.
-- **Codex `notify` dispatcher** for generic completion Push notifications while preserving any existing notifier such as Computer Use.
+- **Codex `notify` dispatcher** for completion summary Push notifications while preserving any existing notifier such as Computer Use.
 - **60-second external watchdog** for long `codex exec` jobs when the agent forgets to notify.
 
 macOS-first.
@@ -197,7 +197,7 @@ Codex agent-turn-complete
         ▼
  Watchsmith dispatcher
    ├─ previous notifier (preserved)
-   └─ ActivitySmith generic completion Push
+   └─ ActivitySmith completion summary Push
 ```
 
 This allows existing Computer Use notification hooks to coexist.
@@ -245,7 +245,7 @@ Inside a wrapped one-shot command, the managed policy and watchdog now share a l
 ```text
 Agent/MCP     = meaningful status ("running tests", "rendering audio")
 Watchdog      = hard fallback ("this process is still running after 60s")
-notify hook   = reliable generic completion signal
+notify hook   = completion event and result preview
 ```
 
 ## Upgrade and notification coordination
@@ -258,7 +258,7 @@ Owned completion senders now share a local event store. Exact duplicate generic 
 
 ## Optional detailed task results
 
-With your authorization, the agent can send a reviewed result summary through ActivitySmith MCP metadata: outcome, changes, verification, limitations, and next step. Metadata is stored by ActivitySmith; it is not a place for raw transcripts, source code, or secrets. Generic notifications remain the default.
+With your authorization, the agent can send a reviewed result summary through ActivitySmith MCP metadata: outcome, changes, verification, limitations, and next step. Metadata is stored by ActivitySmith; it is not a place for raw transcripts, source code, or secrets. Completion previews are now extracted from the current event by default; metadata remains opt-in.
 
 `watchsmith_result.py` validates a local result and prints arguments for the existing MCP tool. It does not send or upload anything. Use `--share-details` to include reviewed summaries, and optionally `--include-result-link` for an existing, approved HTTPS result page. No separate server is required. See the [result format and workflow](docs/RESULTS.md) and [example](config/result-example.json).
 
@@ -267,7 +267,7 @@ Metadata storage was verified through MCP history, and the user confirmed detail
 ## Security
 
 - ActivitySmith API key is stored in macOS Keychain (`activitysmith-codex`).
-- The completion notifier deliberately ignores prompt and assistant-message fields.
+- The completion notifier locally extracts short request/result sentences for the Lock Screen. This sends selected text to ActivitySmith. Fenced code and common sensitive patterns are filtered, but this is not complete privacy detection. Set `WATCHSMITH_COMPLETION_PREVIEW=0` in the notifier environment for neutral notifications; see [privacy and limits](docs/RESULTS.md#automatic-completion-summaries-v023).
 - Existing notifier argv is stored locally under `~/.codex/watchsmith`.
 - Do not commit local keys or `.codex` state.
 
@@ -355,4 +355,4 @@ Live Activities request immediate Lock Screen dismissal when they end, with expl
 
 Watchsmith can select stage-based progress, measured percentage, elapsed time, alerts, or measured stats/metrics at the start of a task. Wrapped MCP/watchdog paths share the first selected type until termination. Colour and status text can change without replacing the card. Reviewed completion Push previews can include a task name and brief result via `--share-preview`; the queue route shares the completion hook’s delivery claim. See [progress](docs/PROGRESS.md) and [results](docs/RESULTS.md).
 
-Completion previews can now be queued locally for the existing completion hook, which sends the reviewed task name, outcome and optional verification subtitle instead of a second generic Push. Exact event IDs or a one-use reference in the final response associate the preview; unsupported clients fall back to neutral response-ended wording. See [result delivery](docs/RESULTS.md).
+Completion notifications now use the current user request and final answer automatically: request topic, performed work/result, and available validation. No result-file preparation or visible HTML marker is required. Missing queued overrides use the event itself; an absent answer gets neutral wording without claiming success. This is local sentence extraction, not a separate model call. See [result delivery and privacy](docs/RESULTS.md).

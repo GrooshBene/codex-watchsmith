@@ -115,10 +115,10 @@ class SummaryRoutingTests(unittest.TestCase):
 
     def event(self, staged, thread='thread', turn='turn'):
         return {'type': 'agent-turn-complete', 'thread-id': thread, 'turn-id': turn,
-                'last-assistant-message': 'PRIVATE raw response\n' + (staged['final_marker'] or '')}
+                'last-assistant-message': 'PRIVATE raw response\n' + '<!-- watchsmith-result:' + staged['reference'] + ' -->'}
 
-    def test_explicit_reference_binds_only_matching_thread_and_turn(self):
-        queued = self.store.stage('thread', self.preview)
+    def test_override_binds_only_matching_thread_and_turn(self):
+        queued = self.store.stage('thread', self.preview, 'turn')
         self.assertIsNone(self.store.summary(self.event(queued, thread='other')))
         key, payload = self.store.summary(self.event(queued))
         self.assertEqual(payload, self.preview)
@@ -133,25 +133,19 @@ class SummaryRoutingTests(unittest.TestCase):
         self.store.stage('thread', self.preview, 'turn')
         self.assertIsNone(self.store.summary({'thread-id': 'thread', 'turn-id': 'turn'}))
 
-    def test_missing_marker_and_expired_summary_fall_back(self):
-        queued = self.store.stage('thread', self.preview, now=100)
-        self.assertIsNone(self.store.summary({'thread-id': 'thread', 'turn-id': 'turn'}, now=101))
+    def test_expired_summary_falls_back(self):
+        queued = self.store.stage('thread', self.preview, 'turn', now=100)
         self.assertIsNone(self.store.summary(self.event(queued), now=100 + D.SUMMARY_TTL + 1))
-        event = self.event(queued)
-        event['last-assistant-message'] += '\nquoted elsewhere'
-        self.assertIsNone(self.store.summary(event, now=101))
 
-    def test_marker_can_correlate_without_turn_but_not_without_thread(self):
-        queued = self.store.stage('thread', self.preview)
-        event = self.event(queued, turn=None)
-        first = self.store.summary(event)
-        self.assertIsNotNone(first)
-        self.assertEqual(first, self.store.summary(event))
-        event.pop('thread-id')
-        self.assertIsNone(self.store.summary(event))
+    def test_marker_cannot_correlate_without_turn(self):
+        queued = self.store.stage('thread', self.preview, 'turn')
+        self.assertIsNone(self.store.summary(self.event(queued, turn=None)))
+        with self.assertRaises(ValueError):
+            self.store.stage('thread', self.preview)
+        self.assertIsNone(queued['final_marker'])
 
     def test_hook_sends_reviewed_summary_once_without_raw_response(self):
-        queued = self.store.stage('thread', self.preview)
+        queued = self.store.stage('thread', self.preview, 'turn')
         event = self.event(queued)
         with patch.object(N, 'HOME', self.home), patch.object(N.shutil, 'which', return_value='/fake/cli'), patch.object(N, 'get_key', return_value='fake'), patch.object(N, 'deliver', return_value='accepted') as send:
             for _ in range(2):
@@ -167,7 +161,7 @@ class SummaryRoutingTests(unittest.TestCase):
         self.assertEqual(self.store.claim(key, 'generic')['action'], 'skip')
 
     def test_summary_and_generic_workers_share_one_claim(self):
-        queued = self.store.stage('thread', self.preview)
+        queued = self.store.stage('thread', self.preview, 'turn')
         key, _ = self.store.summary(self.event(queued))
         claim = self.store.claim(key, 'generic')
         self.store.finish(key, claim['token'], 'accepted')
@@ -183,7 +177,7 @@ class SummaryRoutingTests(unittest.TestCase):
         log = self.home / 'pushes.jsonl'
         cli.write_text('#!' + sys.executable + '\nimport os,sys,json\nwith open(os.environ["TEST_CALLS"],"a") as f: f.write(json.dumps(sys.argv[1:])+"\\n")\nprint("Success: true")\n')
         cli.chmod(0o755)
-        queued = self.store.stage('thread', self.preview)
+        queued = self.store.stage('thread', self.preview, 'turn')
         event = json.dumps(self.event(queued))
         env = dict(os.environ, PATH=str(binary) + os.pathsep + os.environ['PATH'], ACTIVITYSMITH_API_KEY='fake', TEST_CALLS=str(log))
         workers = [subprocess.Popen([sys.executable, str(binary / 'activitysmith_notify.py'), event], env=env) for _ in range(3)]

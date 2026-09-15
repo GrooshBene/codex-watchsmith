@@ -73,7 +73,7 @@ class ResultTests(unittest.TestCase):
             source = Path(directory) / 'result.json'
             source.write_text(json.dumps(dict(EXAMPLE, task_name='작업', notification_summary='검증 완료', notification_verification='5개 통과')))
             args = [sys.executable, str(ROOT / 'bin/watchsmith_result.py'), str(source),
-                    '--queue-for-hook', '--home', directory, '--thread-id', 'thread']
+                    '--queue-for-hook', '--home', directory, '--thread-id', 'thread', '--turn-id', 'turn']
             rejected = subprocess.run(args, capture_output=True, text=True)
             self.assertEqual(rejected.returncode, 2)
             self.assertFalse((Path(directory) / 'watchsmith').exists())
@@ -81,7 +81,7 @@ class ResultTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             staged = json.loads(result.stdout)
             self.assertTrue(staged['queued'])
-            self.assertIn('watchsmith-result:', staged['final_marker'])
+            self.assertIsNone(staged['final_marker'])
             self.assertNotIn('검증 완료', result.stdout)
 
     def test_cli_is_local_and_errors_do_not_echo_content(self):

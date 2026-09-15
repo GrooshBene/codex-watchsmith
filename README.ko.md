@@ -289,7 +289,7 @@ Codex
 
 ## 상세 작업 결과 공유 (선택 사항)
 
-사용자가 동의하면 에이전트는 결과·수행 내용·검증 근거·남은 문제·다음 단계로 정리한 요약을 ActivitySmith MCP의 metadata로 보낼 수 있습니다. metadata도 ActivitySmith 서버에 저장되므로 원본 대화·소스코드·비밀 정보를 자동 복사하지 않습니다. 기본값은 일반 상태 알림입니다.
+사용자가 동의하면 에이전트는 결과·수행 내용·검증 근거·남은 문제·다음 단계로 정리한 요약을 ActivitySmith MCP의 metadata로 보낼 수 있습니다. metadata도 ActivitySmith 서버에 저장되므로 원본 대화·소스코드·비밀 정보를 자동 복사하지 않습니다. 완료 알림은 현재 요청·답변에서 추출한 미리보기가 기본이며, metadata 상세 공유는 별도 동의를 유지합니다.
 
 `watchsmith_result.py`는 로컬 결과를 검증하고 기존 MCP 도구에 넘길 인수만 출력합니다. 직접 전송하거나 파일을 업로드하지 않습니다. `--share-details`는 검토한 요약을 포함하고, `--include-result-link`는 이미 존재하며 공유가 허용된 HTTPS 결과 페이지를 선택적으로 연결합니다. 별도 서버는 필요하지 않습니다. [결과 형식 및 사용 절차](docs/RESULTS.md)와 [예시](config/result-example.json)를 참고하세요.
 
@@ -305,7 +305,7 @@ activitysmith-codex
 
 API Key를 `.zshrc`, `config.toml`, 저장소 파일에 직접 기록하지 않습니다.
 
-완료 notifier는 Codex가 넘겨주는 payload 중 사용자 prompt나 assistant 응답 본문을 ActivitySmith로 전달하지 않습니다. 기본적으로 generic completion signal만 전송합니다.
+완료 notifier는 현재 이벤트의 사용자 요청·최종 답변에서 짧은 문장을 로컬로 추출해 ActivitySmith로 전송하므로 잠금화면에 작업 내용이 표시됩니다. 전체 대화를 업로드하거나 저장하지 않습니다. 코드 블록·URL·일부 민감 정보 형태를 제외하지만 완전한 개인정보 탐지는 아닙니다. 민감한 작업은 실제 notifier 환경에 `WATCHSMITH_COMPLETION_PREVIEW=0`을 설정하고 클라이언트를 재시작하면 내용 없는 일반 알림만 보냅니다. 터미널 환경 변수는 Desktop에 전달되지 않을 수 있습니다. [공유 범위와 한계](docs/RESULTS.md)를 확인하세요.
 
 또한 전역 Codex 지침에서는 다음 내용을 ActivitySmith로 보내지 않도록 요구합니다.
 
@@ -455,4 +455,4 @@ Live Activity 종료 시 최종 상태를 명시하고 잠금화면에서 즉시
 
 작업 시작 시 단계형·진행률·경과 시간·상태 안내·실측 수치에 맞는 Live Activity를 선택할 수 있습니다. wrapper의 MCP와 watchdog은 먼저 선택된 타입을 종료까지 공유하고 색상·상태 문구로 단계를 구분합니다. 검토한 작업명과 짧은 결과는 `--share-preview`로 완료 Push에 담을 수 있습니다. 큐 전달 경로에서는 완료 hook의 전송 기록을 공유합니다. [진행 알림](docs/PROGRESS.md)과 [결과 공유](docs/RESULTS.md)를 참고하세요.
 
-완료 요약을 로컬에 준비하면 기존 완료 hook이 작업명·수행 결과·선택 검증 부제를 담은 Push 한 건으로 전송합니다. 정확한 이벤트 ID 또는 최종 응답의 일회용 참조값으로 연결하며, 연결하지 못한 경우에는 목표 완료를 단정하지 않는 응답 종료 안내를 보냅니다. [결과 전달](docs/RESULTS.md)을 참고하세요.
+완료 알림은 현재 사용자 요청과 최종 답변에서 작업 주제·수행 결과·검증 내용을 자동 추출합니다. 별도의 결과 파일이나 답변에 보이는 HTML 표식이 필요 없습니다. 큐가 없거나 만료되어도 현재 이벤트로 요약을 만들며, 답변 자체가 없는 경우에는 성공을 단정하지 않는 일반 안내를 보냅니다. 별도 모델 호출 없이 문장을 추출하는 방식입니다. [결과 전달과 공유 범위](docs/RESULTS.md)를 참고하세요.

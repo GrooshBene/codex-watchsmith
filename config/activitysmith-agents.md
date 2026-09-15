@@ -35,14 +35,13 @@
 
 
 ## 완료 요약과 일반 hook 단일 전송
-- 사용자에게 작업명·결과의 잠금화면 표시를 허용받았다면 최종 응답 전에 검토한 결과 JSON을 준비한다. task_name에는 작업명, notification_summary에는 실제 수행 내용과 결과, 선택 notification_verification에는 짧은 검증 결과를 쓴다. completed/partial/blocked/failed를 근거에 맞게 선택한다.
-- 기본 전달은 설치된 watchsmith_result.py <파일> --share-preview --queue-for-hook이다. 이 단계는 로컬 준비만 하며 Push를 보내지 않는다. 정확한 thread ID는 실행 환경 CODEX_THREAD_ID 또는 신뢰할 수 있는 현재 작업 ID를 사용하고, 정확한 turn ID가 제공된 경우에만 --turn-id로 전달한다.
-- helper가 queued=true를 반환한 경우 그 결과는 완료 hook이 한 번 전송하므로 같은 결과의 MCP Push를 따로 보내지 않는다. final_marker가 반환되면 이를 최종 응답 맨 끝의 독립된 줄에 그대로 포함한다. 이는 무작위 일회용 참조값이며 결과 텍스트나 Codex ID를 포함하지 않는다. 다른 작업의 참조값을 복사하거나 turn ID를 추측하지 않는다.
-- hook은 실제 완료 이벤트의 thread ID와 정확한 turn ID 또는 최종 응답의 참조값을 대조해 로컬 요약을 선택한다. 최근 로그·최근 파일·thread ID만으로 요약을 선택하지 않는다. 참조값이 제거되거나 누락되면 요약을 연결할 수 없으므로 일반 응답 종료 알림으로 대체한다. 일부 클라이언트는 HTML 주석 형태의 참조값을 표시하거나 제거할 수 있어 실제 연결 검증이 필요하다.
-- queue는 --share-preview 전용이다. CLI가 지원하지 않는 metadata나 링크를 본문에 자동 복사하지 않는다. metadata 상세 전송이 꼭 필요하면 기존 MCP 경로를 사용하되, 같은 hook의 정확한 thread-id와 turn-id가 있을 때만 watchsmith_delivery.py claim으로 조율한다. send일 때만 전송하고 반환 correlation_tag만 tags에 추가한다. wait/skip이면 전송하지 않는다.
-- 직접 MCP 전송의 명시적 성공은 finish --outcome accepted, 불명확한 결과는 unknown으로 기록한다. unknown은 중복 위험 때문에 일반 Push로 자동 재전송하지 않는다. 정확한 ID 없는 독립 MCP 전송까지 자동 중복 제거된다고 주장하지 않는다.
-- 큐 준비 실패·만료·모호한 참조·신원 불일치에는 일반 hook을 유지한다. 일반 hook은 응답 종료만 확인하므로 목표 달성을 단정하지 않는다. 저장소 오류 시 일반 알림은 best-effort이며 단일 전송을 보장하지 않는다.
-- 이 흐름은 기존 Computer Use/사용자 notify 연결을 보존한다. 다른 설치·외부 notifier의 독립 전송이나 앱/기기의 실제 표시까지 보장하지 않는다. wrapper 실행 ID를 turn ID 대신 사용하지 않는다.
+- 기본 완료 Push는 hook이 현재 완료 이벤트의 사용자 요청과 마지막 답변에서 로컬로 추출해 한 번 보낸다. 같은 완료 결과를 MCP Push로 별도 전송하지 않는다. 응답이 끝났다는 사실과 사용자 목표 달성을 구분한다.
+- 최종 답변 첫 문단에 작업명·실제 수행 내용·결과를 간결하게 작성한다. 실제 검증 결과와 남은 문제·미적용 범위는 명확한 문장으로 적는다. 모바일에 공유할 수 없는 정보는 요약 문장에 넣지 않는다.
+- 최종 답변에 내부 참조값이나 HTML 결과 표식을 넣지 않는다. 기본 흐름에는 결과 파일이나 사전 큐 등록이 필요 없다. 이전 지침이 남아 있어도 결과 표식을 만들거나 복사하지 않는다.
+- 선택적으로 검토한 preview를 지정하려면 watchsmith_result.py <파일> --share-preview --queue-for-hook에 신뢰할 수 있는 정확한 thread ID와 turn ID가 모두 있어야 한다. ID가 없으면 추측하거나 최근 로그를 뒤지지 않고 기본 자동 요약을 사용한다. 큐 누락·만료·불일치도 현재 완료 이벤트 자동 요약으로 처리한다.
+- 자동 추출은 별도 모델 호출 없이 수행되며 전체 대화·파일을 읽거나 업로드하지 않는다. WATCHSMITH_COMPLETION_PREVIEW=0인 notifier 환경은 내용 없는 일반 응답 종료 알림만 보낸다. 알려진 민감 정보 형태를 제외하는 처리는 모든 개인정보나 기밀의 탐지를 보장하지 않는다.
+- metadata 상세 전송이 필요한 경우 기존 MCP 경로와 별도의 공유 동의를 유지한다. 같은 hook의 정확한 thread-id와 turn-id가 있을 때만 watchsmith_delivery.py claim으로 조율한다. send일 때만 전송하고 반환 correlation_tag만 tags에 추가한다. wait/skip이면 전송하지 않는다.
+- 직접 MCP 전송의 명시적 성공은 finish --outcome accepted, 불명확한 결과는 unknown으로 기록한다. unknown은 중복 위험 때문에 자동 재전송하지 않는다. 기존 Computer Use/사용자 notify 연결을 보존한다. ID 누락·저장소 오류·독립 외부 notifier의 중복 및 실제 기기 표시까지 보장하지 않는다.
 
 ## wrapper 안의 진행 알림 조율
 - WATCHSMITH_PROGRESS_CONTEXT와 WATCHSMITH_PROGRESS_HELPER가 제공되면 python3 "$WATCHSMITH_PROGRESS_HELPER" claim을 Live Activity 시작/업데이트 전에 실행한다. 이 환경은 codex-watch가 감싼 단일 프로세스 실행 범위이며 turn ID가 아니다.

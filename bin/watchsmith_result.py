@@ -113,6 +113,9 @@ def main():
         if not args.share_preview or args.share_details or args.include_result_link:
             print('[watchsmith] hook queue requires --share-preview only; metadata and links use the separate MCP path', file=sys.stderr)
             return 2
+        if not args.thread_id or not args.turn_id:
+            print('[watchsmith] exact thread and turn IDs required for an optional preview; the hook summarizes the completion event automatically', file=sys.stderr)
+            return 2
         from watchsmith_delivery import Store
         import sqlite3
         store = None
