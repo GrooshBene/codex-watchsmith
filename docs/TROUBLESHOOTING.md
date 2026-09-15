@@ -104,3 +104,6 @@ A preview alone sends nothing and starts no follow-up. Use the existing approval
 
 
 If progress claims return `wait` with `approval-transition`, the wrapper is deliberately holding its display during approval pause/resume. Complete the matching MCP operation and `approval-finish` acknowledgment. Unknown outcomes stay held; a late or wrong token cannot reopen progress. Do not use `ended` for a temporary pause. After actual run termination, no resume is permitted. Use a reviewed fallback Push only with explicit long-press guidance and never treat no response as consent or failed delivery.
+## Completion titles contain browser context or questionItemId
+
+Older notifier versions treated the contents of Desktop input envelopes as user requests. The corrected extractor removes browser-context blocks and recognizes question-response envelopes/arrays; reply-only events use the current answer topic. Install a version containing this fix to update the notifier. Source edits alone do not update an existing local installation. Unknown client envelope formats may still require additional handling.
