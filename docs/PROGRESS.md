@@ -83,3 +83,8 @@ Use the returned content_state (including timer start when present), stream_key 
 New wrapper contexts use an elapsed timer if watchdog starts first; old contexts without a type retain progress compatibility. Timer start is preserved across handover. A bare first claim retains the legacy progress default; agents should supply their chosen type explicitly. Supported wrapper displays: progress (percentage), segmented_progress (current_step/number_of_steps), elapsed timer, alert (message), stats/metrics (explicit metrics array). Countdown scheduling and persistent approval cards are not implemented.
 
 Fallback and cleanup use the selected type and last supplied display fields. Those values describe the last request, not an independent measurement or proof of remote receipt. They add generic process status and immediate dismissal at exit. Colours, icons and badges may distinguish phases without changing type. Agent-acknowledged end closes the local lifecycle so later claims cannot recreate it. Desktop outside the wrapper relies on policy and does not gain process/turn correlation.
+
+
+## Approval display handoff
+
+The helper exposes `approval-pause`, `approval-resume` and `approval-finish`. These prepare existing MCP stream pause/resume calls and fence local progress/fallback until the caller records an explicit outcome. A paused approval interval is not a closed run. Keys, type and timer origin are preserved on successful return. Unknown transitions remain held until the run is safely stopped/reconciled; closed runs reject late acknowledgments. See MESSAGE_SCENARIOS.md for the exact sequence and fallback guidance.

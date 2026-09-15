@@ -222,3 +222,80 @@ class ActivityTypeTests(unittest.TestCase):
         P.finish(self.path, first['token'], 'accepted')
         second = P.claim(self.path, content_state={'type': 'timer', 'timer_start_at': '2026-01-01T00:00:00Z'})
         self.assertEqual(first['content_state']['timer_start_at'], second['content_state']['timer_start_at'])
+
+
+class ApprovalTransitionTests(unittest.TestCase):
+    setUp = ProgressTests.setUp
+    def test_pause_blocks_claim_and_watchdog_then_resume_restores_type(self):
+        token = P.claim(self.path, content_state={'type': 'timer', 'timer_start_at': '2026-09-15T00:00:00Z'})['token']
+        P.finish(self.path, token, 'accepted')
+        pause = P.approval_transition(self.path, 'pause')
+        self.assertEqual(pause['tool'], 'pause_live_activity_stream')
+        self.assertEqual(pause['arguments']['content_state']['type'], 'timer')
+        self.assertEqual(pause['arguments']['content_state']['auto_dismiss_minutes'], 0)
+        self.assertEqual(P.claim(self.path)['action'], 'wait')
+        with patch.object(P, 'invoke') as call:
+            P.fallback(self.path, 'cli', {})
+            call.assert_not_called()
+        self.assertTrue(P.approval_finish(self.path, pause['token'], 'accepted'))
+        self.assertEqual(P.approval_transition(self.path, 'pause')['action'], 'ready')
+        resume = P.approval_transition(self.path, 'resume')
+        self.assertEqual(resume['tool'], 'resume_live_activity_stream')
+        self.assertEqual(P.claim(self.path)['action'], 'wait')
+        self.assertTrue(P.approval_finish(self.path, resume['token'], 'accepted'))
+        next_claim = P.claim(self.path)
+        self.assertEqual(next_claim['action'], 'send')
+        self.assertEqual(next_claim['content_state']['timer_start_at'], '2026-09-15T00:00:00Z')
+
+    def test_pending_writer_and_stale_ack(self):
+        token = P.claim(self.path, now=100)['token']
+        self.assertEqual(P.approval_transition(self.path, 'pause', now=101)['action'], 'wait')
+        pause = P.approval_transition(self.path, 'pause', now=1000)
+        self.assertFalse(P.finish(self.path, token, 'accepted'))
+        self.assertFalse(P.approval_finish(self.path, 'wrong', 'accepted'))
+        self.assertTrue(P.approval_finish(self.path, pause['token'], 'accepted'))
+
+    def test_unknown_pause_never_reopens_or_assumes_approval(self):
+        pause = P.approval_transition(self.path, 'pause')
+        P.approval_finish(self.path, pause['token'], 'unknown')
+        self.assertEqual(P.claim(self.path)['action'], 'wait')
+        self.assertEqual(P.approval_transition(self.path, 'resume')['action'], 'wait')
+        with patch.object(P, 'invoke') as call:
+            P.fallback(self.path, 'cli', {})
+            call.assert_not_called()
+
+    def test_failed_pause_can_recover_but_failed_resume_stays_paused(self):
+        pause = P.approval_transition(self.path, 'pause')
+        P.approval_finish(self.path, pause['token'], 'failed')
+        pause = P.approval_transition(self.path, 'pause')
+        self.assertEqual(pause['action'], 'send')
+        P.approval_finish(self.path, pause['token'], 'accepted')
+        resume = P.approval_transition(self.path, 'resume')
+        P.approval_finish(self.path, resume['token'], 'failed')
+        self.assertEqual(P.claim(self.path)['action'], 'wait')
+        self.assertEqual(P.approval_transition(self.path, 'resume')['action'], 'send')
+
+    def test_closed_run_cannot_be_resumed_by_late_ack(self):
+        pause = P.approval_transition(self.path, 'pause')
+        P.approval_finish(self.path, pause['token'], 'accepted')
+        resume = P.approval_transition(self.path, 'resume')
+        with patch.object(P, 'invoke') as call:
+            P.close_run(self.path, 'cli', {}, 0)
+            self.assertEqual(call.call_count, 1)
+        self.assertFalse(P.approval_finish(self.path, resume['token'], 'accepted'))
+        self.assertEqual(P.approval_transition(self.path, 'resume')['action'], 'skip')
+
+    def test_only_one_pause_claim(self):
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            results = list(pool.map(lambda _: P.approval_transition(self.path, 'pause'), range(4)))
+        self.assertEqual(sum(r['action'] == 'send' for r in results), 1)
+
+
+    def test_unknown_pause_retains_remote_cleanup_obligation(self):
+        pause = P.approval_transition(self.path, 'pause')
+        P.approval_finish(self.path, pause['token'], 'unknown')
+        with patch.object(P, 'invoke') as call:
+            P.close_run(self.path, 'cli', {}, 1)
+            call.assert_called_once()
+            self.assertEqual(call.call_args.args[1][2], 'watchsmith-test')

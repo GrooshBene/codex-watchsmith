@@ -356,3 +356,10 @@ Live Activities request immediate Lock Screen dismissal when they end, with expl
 Watchsmith can select stage-based progress, measured percentage, elapsed time, alerts, or measured stats/metrics at the start of a task. Wrapped MCP/watchdog paths share the first selected type until termination. Colour and status text can change without replacing the card. Reviewed completion Push previews can include a task name and brief result via `--share-preview`; the queue route shares the completion hook’s delivery claim. See [progress](docs/PROGRESS.md) and [results](docs/RESULTS.md).
 
 Completion notifications now use the current user request and final answer automatically: request topic, performed work/result, and available validation. No result-file preparation or visible HTML marker is required. Missing queued overrides use the event itself; an absent answer gets neutral wording without claiming success. This is local sentence extraction, not a separate model call. See [result delivery and privacy](docs/RESULTS.md).
+
+
+## State-specific messages (development)
+
+The message helper now prepares 29 scenarios covering analysis, implementation, validation, transfer, installation, deployment, recovery, decisions and terminal outcomes. Layouts use real measurements or elapsed time; concrete approval requests use ActivitySmith's existing two-action workflow. The managed policy guides the active agent through waiting, cancellation and scoped follow-up work. No new server, automatic restart recovery or native permission bypass is added. Existing completion notifications remain on the single hook path. See the [scenario catalog and examples](docs/MESSAGE_SCENARIOS.md). These changes require installing this development version; they are not included in v0.2.3.
+
+Approval choices now default to a Live Activity with visible buttons, including inside the wrapper. Progress is paused during the decision and resumes with the same key/type when work continues. Explicit Push/automatic fallback includes a long-press hint. Unknown delivery is never treated as consent.

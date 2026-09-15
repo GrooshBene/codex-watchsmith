@@ -128,6 +128,8 @@ def claim(path, now=None, content_state=None):
     with state(path) as data:
         if data['closed']:
             return {'action': 'skip', 'reason': 'run-ended'}
+        if data.get('approval_gate'):
+            return {'action': 'wait', 'reason': 'approval-transition'}
         if data['pending_until'] > now:
             return {'action': 'wait'}
         requested_type = content_state.get('type') if content_state else None
@@ -154,6 +156,63 @@ def finish(path, token, outcome):
         return True
 
 
+def approval_transition(path, operation, now=None):
+    """Fence local writers before pausing/resuming the remote progress stream."""
+    if operation not in ('pause', 'resume'):
+        raise ValueError('invalid approval transition')
+    now = time.time() if now is None else now
+    with state(path) as data:
+        if data['closed']:
+            return {'action': 'skip', 'reason': 'run-ended'}
+        gate = data.get('approval_gate', '')
+        if operation == 'pause' and gate == 'paused':
+            return {'action': 'ready', 'reason': 'already-paused'}
+        if (operation == 'pause' and gate) or (operation == 'resume' and gate != 'paused') or data['pending_until'] > now:
+            return {'action': 'wait', 'reason': 'approval-transition'}
+        token = secrets.token_hex(24)
+        data.update(approval_gate='pausing' if operation == 'pause' else 'resuming',
+                    approval_token=token, token='', pending_until=0)
+        if operation == 'pause':
+            data['approval_previous_stream'] = data['may_have_stream']
+            data['may_have_stream'] = True  # Pause may create a retained remote key.
+        chosen = selected(data)
+        args = {'stream_key': data['stream_key']}
+        if operation == 'pause':
+            final = copy.deepcopy(chosen)
+            final.update(title='사용자 선택 대기', subtitle='진행 표시를 멈추고 선택 알림으로 전환합니다',
+                         color='orange', auto_dismiss_minutes=0)
+            if final['type'] == 'alert':
+                final['message'] = final['subtitle']
+            if final['type'] == 'timer':
+                final.update(is_running=False, timer_pause_at=datetime.now(timezone.utc).isoformat())
+            args['content_state'] = final
+        return {'action': 'send', 'token': token,
+                'tool': 'pause_live_activity_stream' if operation == 'pause' else 'resume_live_activity_stream',
+                'arguments': args}
+
+
+def approval_finish(path, token, outcome):
+    if outcome not in ('accepted', 'failed', 'unknown'):
+        raise ValueError('invalid transition outcome')
+    with state(path) as data:
+        gate = data.get('approval_gate', '')
+        if data['closed'] or not token or data.get('approval_token') != token or gate not in ('pausing', 'resuming'):
+            return False
+        data['approval_token'] = ''
+        if outcome == 'unknown':
+            data['approval_gate'] = gate + '-unknown'
+        elif gate == 'pausing':
+            data['approval_gate'] = 'paused' if outcome == 'accepted' else ''
+            if outcome == 'accepted':
+                data['semantic_active'] = True
+                data['may_have_stream'] = True  # A paused remote key still needs cleanup.
+            else:
+                data['may_have_stream'] = data.get('approval_previous_stream', False)
+        else:
+            data['approval_gate'] = '' if outcome == 'accepted' else 'paused'
+        return True
+
+
 def ended(path):
     with state(path) as data:
         # The agent has explicitly acknowledged the remote end; keep fallback quiet.
@@ -172,7 +231,7 @@ def invoke(cli, args, env):
 def fallback(path, cli, env, now=None):
     now = time.time() if now is None else now
     with state(path) as data:
-        if (data['closed'] or data['semantic_active'] or data['pending_until'] > now
+        if (data['closed'] or data.get('approval_gate') or data['semantic_active'] or data['pending_until'] > now
                 or data['fallback_attempted']):
             return
         data['fallback_attempted'] = True
@@ -275,6 +334,11 @@ def main():
     claimant = sub.add_parser('claim')
     claimant.add_argument('--content-state', help='reviewed JSON display; first claimant selects type')
     sub.add_parser('ended')
+    sub.add_parser('approval-pause')
+    sub.add_parser('approval-resume')
+    transition_ack = sub.add_parser('approval-finish')
+    transition_ack.add_argument('--token', required=True)
+    transition_ack.add_argument('--outcome', choices=('accepted', 'failed', 'unknown'), required=True)
     ack = sub.add_parser('finish')
     ack.add_argument('--token', required=True)
     ack.add_argument('--outcome', choices=('accepted', 'failed', 'unknown'), required=True)
@@ -292,6 +356,12 @@ def main():
         if args.action == 'ended':
             ended(path)
             print(json.dumps({'recorded': True}))
+            return 0
+        if args.action in ('approval-pause', 'approval-resume'):
+            print(json.dumps(approval_transition(path, args.action.split('-')[1])))
+            return 0
+        if args.action == 'approval-finish':
+            print(json.dumps({'recorded': approval_finish(path, args.token, args.outcome)}))
             return 0
         result = claim(path, content_state=json.loads(args.content_state) if args.content_state else None) if args.action == 'claim' else {
             'recorded': finish(path, args.token, args.outcome)}

@@ -74,3 +74,8 @@ Shared progress contexts now retain a bounded, explicitly supplied content state
 ## Reviewed completion routing
 
 The notifier extracts request/result sentences directly from the current completion event in memory, with bounded input/output and basic filtering. It does not read session history or invoke another model. Optional reviewed previews require exact thread/turn IDs in the existing private summaries table; legacy marker-only entries are ignored. Both routes share the existing generic-owner delivery claim. No final-response marker is generated or required. Unknown direct-MCP outcomes suppress retries; storage failures and independent senders remain best-effort. Preview extraction changes the default sharing boundary; see RESULTS.md for the environment opt-out and privacy limitations.
+
+
+## Scenario preparation and active-session decisions
+
+watchsmith_result.py also prepares 29 scenario variants using existing MCP tools. It reuses watchsmith_progress.content for display validation and returns a route plus reviewed arguments. Terminal variants route to the existing completion hook, never to another sender. Approval variants preserve concrete operation context and use request_approval; Live Activity is preferred inside and outside wrappers. The wrapper uses a local, token-acknowledged pause/resume gate to suppress concurrent progress and fallback while the approval card is active. The managed policy handles same-request waiting and permitted follow-up within an active session. This is not durable execution coordination or restart recovery. See MESSAGE_SCENARIOS.md for the catalog and boundaries.
