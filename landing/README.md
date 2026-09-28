@@ -4,19 +4,20 @@ Approved Signal direction, based on README and the user-provided Univer referenc
 
 Open `index.html` directly, or run `python3 -m http.server 8766 --bind 127.0.0.1 --directory landing` from the checkout and visit http://127.0.0.1:8766/. No build, external font, package installation, analytics, or external scripts required. All demos are local; no notification is sent. Copy buttons copy commands only.
 
-The original three drafts and approval record are preserved under `design-demos/`. The development preview at design-demos/index.html mirrors this page; design-demos/comparison.html retains the original comparison. The website is deployed through GitHub Pages.
+The original three drafts and approval record are preserved under `design-demos/`. The development preview at design-demos/index.html mirrors this page; design-demos/comparison.html retains the original comparison. The website is deployed through Cloudflare Pages Direct Upload.
 
 ## Internal guides
 
-`guides/index.html` is the documentation entry point, with Korean setup, notifications/privacy, and update/recovery pages. Content is adapted from `docs/SETUP.md`, `docs/RESULTS.md`, `docs/UPDATES.md`, and README.md. It is an end-user guide, not a full transcription of developer contracts. Update these pages when their source behavior changes. Shared `guides/guide.css` and `guide.js` must accompany the HTML; publish/copy the entire landing directory. Relative links support file:// and static hosting under a subpath. Download/account/OAuth links stay external because those actions belong to the official services.
+`guides/index.html` is the documentation entry point, with Korean setup, notifications/privacy, and update/recovery pages. Content is adapted from `docs/SETUP.md`, `docs/RESULTS.md`, `docs/UPDATES.md`, and README.md. It is an end-user guide, not a full transcription of developer contracts. Update these pages when their source behavior changes. Shared `guides/guide.css` and `guide.js` must accompany the HTML; publish/copy the HTML pages and their shared CSS/JavaScript together. Relative links support file:// and static hosting under a subpath. Download/account/OAuth links stay external because those actions belong to the official services.
 
+## Cloudflare Pages deployment
 
-## GitHub Pages deployment
+Public URL: https://codex-watchsmith.pages.dev/
 
-Public URL: https://grooshbene.github.io/codex-watchsmith/
+The `codex-watchsmith` project uses Cloudflare Pages Direct Upload. This is a static site on the free service: no Functions, Workers runtime code, paid plan, analytics, or custom domain is required. GitHub Actions is not used for website deployment. Source changes do not automatically publish; upload a new deployment after reviewing changes.
 
-`.github/workflows/pages.yml` publishes changes to `landing/` on `main`, or a manual run on `main`. In repository Settings → Pages, the source must be **GitHub Actions**. Only the HTML pages and shared guide CSS/JavaScript are copied to the deployment artifact; screenshots, verification reports, design drafts, and repository files are excluded.
+Package only `index.html`, `guides/*.html`, `guides/guide.css`, and `guides/guide.js` from this directory. Keep `index.html` at the ZIP root and preserve the `guides/` subdirectory. Exclude screenshots, verification reports, this README, design drafts, and repository files. In Cloudflare, open Workers & Pages → codex-watchsmith → Create a new deployment, select Production, upload the ZIP, and deploy.
 
-`landing/index.html` becomes the site root (no `/landing/` segment), with guides at `guides/`, `guides/setup.html`, `guides/notifications.html`, and `guides/updates.html`. Keep local links relative so they work beneath `/codex-watchsmith/`. New asset types must be explicitly added to the preparation step before linking them.
+The site root has no `/landing/` or repository-name segment. Guides are available under `/guides/`, `/guides/setup.html`, `/guides/notifications.html`, and `/guides/updates.html` (Cloudflare may redirect HTML paths to extensionless URLs). Keep internal links relative. After deploying, check the homepage, all four guides, and the shared CSS/JavaScript over HTTPS.
 
-Review changes through a pull request to `main`. To recover a previous website, revert its changes through a pull request and let the same workflow deploy; no release tag or package publication is needed. The workflow publishes the website only and does not change the installed Watchsmith runtime.
+Review source changes through a pull request to `main`. To recover a previous site, upload a previously verified package as a new production deployment. No release tag or package publication is needed. Direct Upload projects cannot be converted to Git integration in place; automatic Git deployments require a new project.

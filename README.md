@@ -6,7 +6,7 @@ Start a long task, step away from your Mac, and follow its progress on your iPho
 
 For **Codex Desktop and Codex CLI on macOS**. Uses your existing ActivitySmith account and iOS app.
 
-[Website](https://grooshbene.github.io/codex-watchsmith/) · [한국어](README.ko.md) · [Use cases](#notifications-for-real-work) · [Get started](#get-started) · [How it works](#how-it-works) · [Documentation](#documentation)
+[Website](https://codex-watchsmith.pages.dev/) · [한국어](README.ko.md) · [Use cases](#notifications-for-real-work) · [Get started](#get-started) · [How it works](#how-it-works) · [Documentation](#documentation)
 
 ![A task on your Mac, progress and result previews on your iPhone. Illustrative workflow.](docs/assets/overview-en.svg)
 
