@@ -1,4 +1,4 @@
-# codex-watchsmith
+# [codex-watchsmith](https://codex-watchsmith.pages.dev/)
 
 ### Codex가 일하는 동안, 화면 앞에서 기다리지 마세요.
 
@@ -6,7 +6,7 @@
 
 **macOS의 Codex Desktop과 Codex CLI**를 지원합니다. 기존 ActivitySmith 계정과 iOS 앱을 사용합니다.
 
-[English](README.md) · [사용 사례](#이런-작업에-이런-알림을-받습니다) · [시작하기](#시작하기) · [동작 원리](#동작-원리) · [문서 안내](#문서-안내)
+[홈페이지](https://codex-watchsmith.pages.dev/) · [English](README.md) · [사용 사례](#이런-작업에-이런-알림을-받습니다) · [시작하기](#시작하기) · [동작 원리](#동작-원리) · [문서 안내](#문서-안내)
 
 ![Mac에서 시작한 작업의 진행 상황과 결과를 iPhone에서 확인하는 흐름. 설명용 이미지.](docs/assets/overview-ko.svg)
 
