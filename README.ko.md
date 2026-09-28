@@ -1,4 +1,4 @@
-# codex-watchsmith
+# [codex-watchsmith](https://codex-watchsmith.pages.dev/)
 
 ### Codex가 일하는 동안, 화면 앞에서 기다리지 마세요.
 

@@ -1,4 +1,4 @@
-# codex-watchsmith
+# [codex-watchsmith](https://codex-watchsmith.pages.dev/)
 
 ### Let Codex work. Take the progress with you.
 
