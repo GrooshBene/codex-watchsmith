@@ -1,0 +1,42 @@
+name: Deploy website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'landing/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+      contents: read
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare public website files
+        run: |
+          mkdir -p _site/guides
+          cp landing/index.html _site/index.html
+          cp landing/guides/*.html landing/guides/guide.css landing/guides/guide.js _site/guides/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Publish website
+        id: deployment
+        uses: actions/deploy-pages@v5
